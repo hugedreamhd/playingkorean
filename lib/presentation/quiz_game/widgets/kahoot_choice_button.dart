@@ -5,7 +5,7 @@ enum ChoiceType { triangle, diamond, circle, square }
 class KahootChoiceButton extends StatelessWidget {
   final String text;
   final String romaji;
-  final String english;
+  final String? english;
   final ChoiceType type;
   final VoidCallback onTap;
   final bool? isCorrect; // null: 선택 전, true: 정답, false: 오답
@@ -16,7 +16,7 @@ class KahootChoiceButton extends StatelessWidget {
     super.key,
     required this.text,
     required this.romaji,
-    required this.english,
+    this.english,
     required this.type,
     required this.onTap,
     this.isCorrect,

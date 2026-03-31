@@ -10,6 +10,9 @@ class GameState {
   final String? errorMessage;
   final bool? lastAnswerCorrect;
   final int? selectedOptionIndex;
+  final String selectedLevel;
+  final int selectedCount;
+  final List<QuizQuestion> failedQuestions;
 
   GameState({
     this.questions = const [],
@@ -21,6 +24,9 @@ class GameState {
     this.errorMessage,
     this.lastAnswerCorrect,
     this.selectedOptionIndex,
+    this.selectedLevel = '1',
+    this.selectedCount = 10,
+    this.failedQuestions = const [],
   });
 
   QuizQuestion? get currentQuestion =>
@@ -38,6 +44,9 @@ class GameState {
     String? errorMessage,
     bool? Function()? lastAnswerCorrect,
     int? Function()? selectedOptionIndex,
+    String? selectedLevel,
+    int? selectedCount,
+    List<QuizQuestion>? failedQuestions,
   }) {
     return GameState(
       questions: questions ?? this.questions,
@@ -49,6 +58,9 @@ class GameState {
       errorMessage: errorMessage ?? this.errorMessage,
       lastAnswerCorrect: lastAnswerCorrect != null ? lastAnswerCorrect() : this.lastAnswerCorrect,
       selectedOptionIndex: selectedOptionIndex != null ? selectedOptionIndex() : this.selectedOptionIndex,
+      selectedLevel: selectedLevel ?? this.selectedLevel,
+      selectedCount: selectedCount ?? this.selectedCount,
+      failedQuestions: failedQuestions ?? this.failedQuestions,
     );
   }
 }
@@ -57,11 +69,21 @@ sealed class GameAction {
   const GameAction();
 }
 
-class LoadQuizzes extends GameAction {}
+class LoadQuizzes extends GameAction {
+  final String difficulty;
+  final int count;
+  LoadQuizzes({required this.difficulty, required this.count});
+}
+
+class StartReview extends GameAction {}
+
 class SelectOption extends GameAction {
   final int index;
   SelectOption(this.index);
 }
+
 class TickTimer extends GameAction {}
+
 class NextQuestion extends GameAction {}
+
 class ResetGame extends GameAction {}

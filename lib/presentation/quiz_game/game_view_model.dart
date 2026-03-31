@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:playingkorean/core/audio/audio_manager.dart';
 import 'package:playingkorean/core/domain/result.dart';
 import 'package:playingkorean/domain/quiz/get_quiz_use_case.dart';
+import 'package:playingkorean/domain/quiz/quiz_question.dart';
 import 'package:playingkorean/presentation/quiz_game/game_state.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -18,8 +19,10 @@ class GameViewModel {
 
   void onAction(GameAction action) {
     switch (action) {
-      case LoadQuizzes():
-        _loadQuizzes();
+      case LoadQuizzes(difficulty: var d, count: var c):
+        _loadQuizzes(d, c);
+      case StartReview():
+        _startReview();
       case SelectOption(index: var index):
         _selectOption(index);
       case TickTimer():
@@ -31,10 +34,15 @@ class GameViewModel {
     }
   }
 
-  void _loadQuizzes() async {
-    _stateSubject.add(_stateSubject.value.copyWith(isLoading: true));
+  void _loadQuizzes(String difficulty, int count) async {
+    _stateSubject.add(_stateSubject.value.copyWith(
+      isLoading: true,
+      selectedLevel: difficulty,
+      selectedCount: count,
+      failedQuestions: [], // 게임 시작 시 초기화
+    ));
     
-    final result = await _getQuizUseCase.execute();
+    final result = await _getQuizUseCase.execute(difficulty: difficulty, count: count);
     
     switch (result) {
       case Success(data: var data):
@@ -43,6 +51,7 @@ class GameViewModel {
           questions: data,
           currentQuestionIndex: 0,
           isFinished: false,
+          score: 0,
         ));
         _audioManager.playBgm();
         _startTimer();
@@ -52,6 +61,21 @@ class GameViewModel {
           errorMessage: error.toString(),
         ));
     }
+  }
+
+  void _startReview() {
+    final currentState = _stateSubject.value;
+    if (currentState.failedQuestions.isEmpty) return;
+
+    _stateSubject.add(currentState.copyWith(
+      questions: currentState.failedQuestions,
+      currentQuestionIndex: 0,
+      isFinished: false,
+      score: 0,
+      failedQuestions: [], // 복습 시작 시 현재 틀린 목록은 비움 (새로 틀리는 걸 담기 위해)
+    ));
+    _audioManager.playBgm();
+    _startTimer();
   }
 
   void _startTimer() {
@@ -86,24 +110,22 @@ class GameViewModel {
     if (currentQuestion == null) return;
     
     final isCorrect = index == currentQuestion.answerIndex;
-    final newScore = isCorrect ? currentState.score + 10 : currentState.score;
+    final newScore = isCorrect ? currentState.score + 1 : currentState.score; // 문항당 1점으로 변경
     
-    if (isCorrect) {
-      _audioManager.playSuccess();
-    } else {
+    List<QuizQuestion> newFailed = List.from(currentState.failedQuestions);
+    if (!isCorrect) {
+      newFailed.add(currentQuestion);
       _audioManager.playFailure();
+    } else {
+      _audioManager.playSuccess();
     }
 
     _stateSubject.add(currentState.copyWith(
       score: newScore,
       lastAnswerCorrect: () => isCorrect,
       selectedOptionIndex: () => index,
+      failedQuestions: newFailed,
     ));
-    
-    // 2초 후 다음 문제로 자동 전환
-    Future.delayed(const Duration(seconds: 2), () {
-      onAction(NextQuestion());
-    });
   }
 
   void _nextQuestion() {
@@ -128,8 +150,8 @@ class GameViewModel {
   }
 
   void _resetGame() {
-    _stateSubject.add(GameState());
-    onAction(LoadQuizzes());
+    final currentState = _stateSubject.value;
+    _loadQuizzes(currentState.selectedLevel, currentState.selectedCount);
   }
 
   void dispose() {

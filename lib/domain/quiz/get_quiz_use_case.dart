@@ -7,7 +7,7 @@ class GetQuizUseCase {
 
   GetQuizUseCase(this._quizRepository);
 
-  Future<Result<List<QuizQuestion>, String>> execute() async {
-    return await _quizRepository.getQuizQuestions();
+  Future<Result<List<QuizQuestion>, String>> execute({String? difficulty, int? count}) async {
+    return await _quizRepository.getQuizQuestions(difficulty: difficulty, count: count);
   }
 }

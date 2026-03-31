@@ -26,7 +26,9 @@ mixin _$QuizQuestion {
   String get contextText => throw _privateConstructorUsedError;
   List<String> get options => throw _privateConstructorUsedError;
   List<String> get romaji => throw _privateConstructorUsedError;
-  List<String> get englishMeanings => throw _privateConstructorUsedError;
+  String get englishDefinition => throw _privateConstructorUsedError;
+  String get englishSentence => throw _privateConstructorUsedError;
+  String get difficulty => throw _privateConstructorUsedError;
   int get answerIndex => throw _privateConstructorUsedError;
 
   /// Serializes this QuizQuestion to a JSON map.
@@ -52,7 +54,9 @@ abstract class $QuizQuestionCopyWith<$Res> {
     String contextText,
     List<String> options,
     List<String> romaji,
-    List<String> englishMeanings,
+    String englishDefinition,
+    String englishSentence,
+    String difficulty,
     int answerIndex,
   });
 }
@@ -77,7 +81,9 @@ class _$QuizQuestionCopyWithImpl<$Res, $Val extends QuizQuestion>
     Object? contextText = null,
     Object? options = null,
     Object? romaji = null,
-    Object? englishMeanings = null,
+    Object? englishDefinition = null,
+    Object? englishSentence = null,
+    Object? difficulty = null,
     Object? answerIndex = null,
   }) {
     return _then(
@@ -102,10 +108,18 @@ class _$QuizQuestionCopyWithImpl<$Res, $Val extends QuizQuestion>
                 ? _value.romaji
                 : romaji // ignore: cast_nullable_to_non_nullable
                       as List<String>,
-            englishMeanings: null == englishMeanings
-                ? _value.englishMeanings
-                : englishMeanings // ignore: cast_nullable_to_non_nullable
-                      as List<String>,
+            englishDefinition: null == englishDefinition
+                ? _value.englishDefinition
+                : englishDefinition // ignore: cast_nullable_to_non_nullable
+                      as String,
+            englishSentence: null == englishSentence
+                ? _value.englishSentence
+                : englishSentence // ignore: cast_nullable_to_non_nullable
+                      as String,
+            difficulty: null == difficulty
+                ? _value.difficulty
+                : difficulty // ignore: cast_nullable_to_non_nullable
+                      as String,
             answerIndex: null == answerIndex
                 ? _value.answerIndex
                 : answerIndex // ignore: cast_nullable_to_non_nullable
@@ -131,7 +145,9 @@ abstract class _$$QuizQuestionImplCopyWith<$Res>
     String contextText,
     List<String> options,
     List<String> romaji,
-    List<String> englishMeanings,
+    String englishDefinition,
+    String englishSentence,
+    String difficulty,
     int answerIndex,
   });
 }
@@ -155,7 +171,9 @@ class __$$QuizQuestionImplCopyWithImpl<$Res>
     Object? contextText = null,
     Object? options = null,
     Object? romaji = null,
-    Object? englishMeanings = null,
+    Object? englishDefinition = null,
+    Object? englishSentence = null,
+    Object? difficulty = null,
     Object? answerIndex = null,
   }) {
     return _then(
@@ -180,10 +198,18 @@ class __$$QuizQuestionImplCopyWithImpl<$Res>
             ? _value._romaji
             : romaji // ignore: cast_nullable_to_non_nullable
                   as List<String>,
-        englishMeanings: null == englishMeanings
-            ? _value._englishMeanings
-            : englishMeanings // ignore: cast_nullable_to_non_nullable
-                  as List<String>,
+        englishDefinition: null == englishDefinition
+            ? _value.englishDefinition
+            : englishDefinition // ignore: cast_nullable_to_non_nullable
+                  as String,
+        englishSentence: null == englishSentence
+            ? _value.englishSentence
+            : englishSentence // ignore: cast_nullable_to_non_nullable
+                  as String,
+        difficulty: null == difficulty
+            ? _value.difficulty
+            : difficulty // ignore: cast_nullable_to_non_nullable
+                  as String,
         answerIndex: null == answerIndex
             ? _value.answerIndex
             : answerIndex // ignore: cast_nullable_to_non_nullable
@@ -202,11 +228,12 @@ class _$QuizQuestionImpl implements _QuizQuestion {
     required this.contextText,
     required final List<String> options,
     required final List<String> romaji,
-    required final List<String> englishMeanings,
+    required this.englishDefinition,
+    required this.englishSentence,
+    required this.difficulty,
     required this.answerIndex,
   }) : _options = options,
-       _romaji = romaji,
-       _englishMeanings = englishMeanings;
+       _romaji = romaji;
 
   factory _$QuizQuestionImpl.fromJson(Map<String, dynamic> json) =>
       _$$QuizQuestionImplFromJson(json);
@@ -233,20 +260,18 @@ class _$QuizQuestionImpl implements _QuizQuestion {
     return EqualUnmodifiableListView(_romaji);
   }
 
-  final List<String> _englishMeanings;
   @override
-  List<String> get englishMeanings {
-    if (_englishMeanings is EqualUnmodifiableListView) return _englishMeanings;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_englishMeanings);
-  }
-
+  final String englishDefinition;
+  @override
+  final String englishSentence;
+  @override
+  final String difficulty;
   @override
   final int answerIndex;
 
   @override
   String toString() {
-    return 'QuizQuestion(id: $id, imageUrl: $imageUrl, contextText: $contextText, options: $options, romaji: $romaji, englishMeanings: $englishMeanings, answerIndex: $answerIndex)';
+    return 'QuizQuestion(id: $id, imageUrl: $imageUrl, contextText: $contextText, options: $options, romaji: $romaji, englishDefinition: $englishDefinition, englishSentence: $englishSentence, difficulty: $difficulty, answerIndex: $answerIndex)';
   }
 
   @override
@@ -261,10 +286,12 @@ class _$QuizQuestionImpl implements _QuizQuestion {
                 other.contextText == contextText) &&
             const DeepCollectionEquality().equals(other._options, _options) &&
             const DeepCollectionEquality().equals(other._romaji, _romaji) &&
-            const DeepCollectionEquality().equals(
-              other._englishMeanings,
-              _englishMeanings,
-            ) &&
+            (identical(other.englishDefinition, englishDefinition) ||
+                other.englishDefinition == englishDefinition) &&
+            (identical(other.englishSentence, englishSentence) ||
+                other.englishSentence == englishSentence) &&
+            (identical(other.difficulty, difficulty) ||
+                other.difficulty == difficulty) &&
             (identical(other.answerIndex, answerIndex) ||
                 other.answerIndex == answerIndex));
   }
@@ -278,7 +305,9 @@ class _$QuizQuestionImpl implements _QuizQuestion {
     contextText,
     const DeepCollectionEquality().hash(_options),
     const DeepCollectionEquality().hash(_romaji),
-    const DeepCollectionEquality().hash(_englishMeanings),
+    englishDefinition,
+    englishSentence,
+    difficulty,
     answerIndex,
   );
 
@@ -303,7 +332,9 @@ abstract class _QuizQuestion implements QuizQuestion {
     required final String contextText,
     required final List<String> options,
     required final List<String> romaji,
-    required final List<String> englishMeanings,
+    required final String englishDefinition,
+    required final String englishSentence,
+    required final String difficulty,
     required final int answerIndex,
   }) = _$QuizQuestionImpl;
 
@@ -321,7 +352,11 @@ abstract class _QuizQuestion implements QuizQuestion {
   @override
   List<String> get romaji;
   @override
-  List<String> get englishMeanings;
+  String get englishDefinition;
+  @override
+  String get englishSentence;
+  @override
+  String get difficulty;
   @override
   int get answerIndex;
 

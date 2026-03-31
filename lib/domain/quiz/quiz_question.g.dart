@@ -14,9 +14,9 @@ _$QuizQuestionImpl _$$QuizQuestionImplFromJson(
   contextText: json['contextText'] as String,
   options: (json['options'] as List<dynamic>).map((e) => e as String).toList(),
   romaji: (json['romaji'] as List<dynamic>).map((e) => e as String).toList(),
-  englishMeanings: (json['englishMeanings'] as List<dynamic>)
-      .map((e) => e as String)
-      .toList(),
+  englishDefinition: json['englishDefinition'] as String,
+  englishSentence: json['englishSentence'] as String,
+  difficulty: json['difficulty'] as String,
   answerIndex: (json['answerIndex'] as num).toInt(),
 );
 
@@ -27,6 +27,8 @@ Map<String, dynamic> _$$QuizQuestionImplToJson(_$QuizQuestionImpl instance) =>
       'contextText': instance.contextText,
       'options': instance.options,
       'romaji': instance.romaji,
-      'englishMeanings': instance.englishMeanings,
+      'englishDefinition': instance.englishDefinition,
+      'englishSentence': instance.englishSentence,
+      'difficulty': instance.difficulty,
       'answerIndex': instance.answerIndex,
     };

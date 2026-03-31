@@ -14,13 +14,15 @@ void main() {
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const HomeScreen(),
-    ),
+    GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
     GoRoute(
       path: '/quiz',
-      builder: (context, state) => const QuizScreen(),
+      builder: (context, state) {
+        final level = state.uri.queryParameters['level'] ?? '1';
+        final countStr = state.uri.queryParameters['count'] ?? '10';
+        final count = int.tryParse(countStr) ?? 10;
+        return QuizScreen(level: level, count: count);
+      },
     ),
   ],
 );

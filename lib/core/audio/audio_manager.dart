@@ -1,4 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 
 class AudioManager {
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -8,28 +9,48 @@ class AudioManager {
   final String _bgmUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
 
   Future<void> playBgm() async {
-    await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
-    await _bgmPlayer.play(UrlSource(_bgmUrl));
-    await _bgmPlayer.setVolume(0.4); // BGM은 약간 작게
+    try {
+      await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
+      await _bgmPlayer.play(UrlSource(_bgmUrl));
+      await _bgmPlayer.setVolume(0.4); // BGM은 약간 작게
+    } catch (e) {
+      print('Audio: error playing BGM: $e');
+    }
   }
 
   Future<void> stopBgm() async {
-    await _bgmPlayer.stop();
+    try {
+      await _bgmPlayer.stop();
+    } catch (e) {
+      print('Audio: error stopping BGM: $e');
+    }
   }
 
   Future<void> playSuccess() async {
-    await _sfxPlayer.play(AssetSource('sounds/success.mp3'));
-    print('Audio: Playing Success Sound');
+    try {
+      // 온라인 정답 효과음 연동
+      await _sfxPlayer.play(UrlSource('https://github.com/rafael-puebla/flutter-audio-players-sample/raw/master/assets/success.mp3'));
+    } catch (e) {
+      debugPrint('Audio: Error playing success sound: $e');
+    }
   }
 
   Future<void> playFailure() async {
-    await _sfxPlayer.play(AssetSource('sounds/failure.mp3'));
-    print('Audio: Playing Failure Sound');
+    try {
+      // 온라인 오답 효과음 연동
+      await _sfxPlayer.play(UrlSource('https://github.com/rafael-puebla/flutter-audio-players-sample/raw/master/assets/failure.mp3'));
+    } catch (e) {
+      debugPrint('Audio: Error playing failure sound: $e');
+    }
   }
 
   Future<void> playTimerTick() async {
-    // 틱 소리는 짧게
-    print('Audio: Playing Timer Tick');
+    try {
+      // 틱(Tick) 소리 로직 (현재는 로그만 남김)
+      debugPrint('Audio: Timer Ticking...');
+    } catch (e) {
+      debugPrint('Audio: Error playing timer tick: $e');
+    }
   }
 
   void dispose() {

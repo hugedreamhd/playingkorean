@@ -24,6 +24,9 @@ class KahootChoiceButton extends StatelessWidget {
     this.isAnswer = false,
   });
 
+  String _buildRomaji() => romaji;
+  String? _buildMeaning() => (english != null && english!.isNotEmpty) ? english : null;
+
   Color _getBackground() {
     Color baseColor;
     switch (type) {
@@ -78,44 +81,80 @@ class KahootChoiceButton extends StatelessWidget {
         onTap: isCorrect != null ? null : onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Stack(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: _getIcon(),
+              // 좌측 아이콘 영역
+              SizedBox(
+                width: 32,
+                child: Center(child: _getIcon()),
               ),
-              Center(
+              const SizedBox(width: 8),
+              // 중앙 텍스트 영역
+              Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      text,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
+                    // 한국어 단어
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        text,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    Text(
-                      '$romaji ($english)',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
+                    // 로마자 발음
+                    if (romaji.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        _buildRomaji(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                    ),
+                    ],
+                    // 실제 단어 뜻
+                    if (_buildMeaning() != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        _buildMeaning()!,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              if (isCorrect != null)
-                Align(
-                  alignment: Alignment.topRight,
-                  child: Icon(
-                    isAnswer ? Icons.check_circle : (isSelected ? Icons.cancel : null),
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
+              const SizedBox(width: 8),
+              // 우측 정답/오답 표시 영역
+              SizedBox(
+                width: 32,
+                child: isCorrect != null
+                    ? Center(
+                        child: Icon(
+                          isAnswer
+                              ? Icons.check_circle
+                              : (isSelected ? Icons.cancel : null),
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),

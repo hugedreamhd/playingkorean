@@ -11,8 +11,10 @@ class QuizQuestion with _$QuizQuestion {
     required String contextText,
     required List<String> options,
     required List<String> romaji,
-    required String englishDefinition,
-    required String englishSentence,
+    required List<String> englishMeanings,
+    required List<String> optionImages,
+    required List<String> explanations,
+    required List<String> exampleSentences,
     required String difficulty,
     required int answerIndex,
   }) = _QuizQuestion;

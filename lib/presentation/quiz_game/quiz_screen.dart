@@ -5,7 +5,7 @@ import 'package:playingkorean/core/presentation/app_theme.dart';
 import 'package:playingkorean/presentation/quiz_game/game_state.dart';
 import 'package:playingkorean/presentation/quiz_game/game_view_model.dart';
 import 'package:playingkorean/domain/quiz/quiz_question.dart';
-import 'package:playingkorean/presentation/quiz_game/widgets/kahoot_choice_button.dart';
+import 'package:playingkorean/presentation/quiz_game/widgets/quiz_option_button.dart';
 
 class QuizScreen extends StatefulWidget {
   final String level;
@@ -166,12 +166,12 @@ class _QuizScreenState extends State<QuizScreen> {
             backgroundColor: Colors.transparent,
             elevation: 0,
             leading: IconButton(
-              icon: Icon(Icons.close, color: AppTheme.text),
+              icon: const Icon(Icons.close, color: Colors.white),
               onPressed: () => context.go('/'),
             ),
             title: Text(
               'Level ${widget.level} - ${state.currentQuestionIndex + 1}/${state.questions.length}',
-              style: TextStyle(color: AppTheme.text, fontSize: 16),
+              style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
             centerTitle: true,
             actions: [
@@ -183,35 +183,50 @@ class _QuizScreenState extends State<QuizScreen> {
                     style: TextStyle(
                       color: AppTheme.pointGreen,
                       fontWeight: FontWeight.bold,
+                      fontSize: 18,
                     ),
                   ),
                 ),
               ),
             ],
           ),
-          body: Column(
-            children: [
-              LinearProgressIndicator(
-                value:
-                    (state.currentQuestionIndex + 1) / state.questions.length,
-                backgroundColor: Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.pointGreen),
-              ),
-              const SizedBox(height: 16),
-              // 질문 카드
-              Expanded(
-                flex: 4,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Card(
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      minHeight: 12,
+                      value: (state.currentQuestionIndex + 1) / state.questions.length,
+                      backgroundColor: Colors.white.withOpacity(0.1),
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.pointGreen),
                     ),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                      child: SingleChildScrollView(
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 질문 카드
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: TweenAnimationBuilder<double>(
+                    key: ValueKey(state.currentQuestionIndex),
+                    tween: Tween(begin: 0.8, end: 1.0),
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOutBack,
+                    builder: (context, value, child) {
+                      return Transform.scale(scale: value, child: child);
+                    },
+                    child: Card(
+                      elevation: 12,
+                      color: Colors.white.withOpacity(0.08),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -220,24 +235,24 @@ class _QuizScreenState extends State<QuizScreen> {
                               question.exampleSentences[question.answerIndex],
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 16,
-                                color: AppTheme.text.withOpacity(0.5),
+                                fontSize: 18,
+                                color: Colors.white.withOpacity(0.5),
                                 fontStyle: FontStyle.italic,
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 24),
                             // 한국어 문장 (빈칸 포함)
                             Text(
                               _formatContextText(question.contextText),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                fontSize: 22,
+                                fontSize: 26,
                                 fontWeight: FontWeight.bold,
+                                color: Colors.white,
                                 height: 1.4,
-                                letterSpacing: -0.5,
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 32),
                             // 타이머
                             _buildTimer(state),
                           ],
@@ -246,20 +261,28 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              // 보기 버튼 (개수에 따라 레이아웃 가변)
-              Expanded(
-                flex: 5,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                const SizedBox(height: 48),
+                // 보기 버튼
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+
                   child: _buildOptions(context, state, question),
                 ),
-              ),
-              // 하단 액션 (정답 확인 후)
-              if (state.lastAnswerCorrect != null)
-                _buildPostAnswerActions(context, state, question),
-            ],
+                // 하단 액션 (정답 확인 후 슬라이드 업)
+                if (state.lastAnswerCorrect != null)
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 1.0, end: 0.0),
+                    duration: const Duration(milliseconds: 300),
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(0, value * 100),
+                        child: child,
+                      );
+                    },
+                    child: _buildPostAnswerActions(context, state, question),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -276,23 +299,19 @@ class _QuizScreenState extends State<QuizScreen> {
     String safeRomaji(int i) =>
         question.romaji.length > i ? question.romaji[i] : '';
     String? safeEnglish(int i) {
-      // 영문뜻이 있으면 우선 표시, 없으면 한국어 설명으로 폴백
+      // 보기에 지저분한 한글 해석을 제외하고 영문 뜻이 있으면 우선 표시
       if (question.englishMeanings.length > i) {
         final em = question.englishMeanings[i];
-        if (em.isNotEmpty) return em;
+        if (em.isNotEmpty) return em.length > 30 ? '${em.substring(0, 27)}...' : em;
       }
-      if (question.explanations.length > i) {
-        final exp = question.explanations[i];
-        if (exp.isNotEmpty) return exp;
-      }
-      return null;
+      return null; // 한글 설명(explanations) 폴백 제거 (보기를 간결하게 유지)
     }
 
     Widget buildButton(int index) {
       final isCorrect = state.lastAnswerCorrect;
       final isSelected = state.selectedOptionIndex == index;
       final isAnswer = index == question.answerIndex;
-      return KahootChoiceButton(
+      return QuizOptionButton(
         text: question.options[index],
         romaji: safeRomaji(index),
         english: safeEnglish(index),
@@ -304,35 +323,21 @@ class _QuizScreenState extends State<QuizScreen> {
       );
     }
 
-    if (optionCount <= 3) {
-      // 2개 또는 3개: 균일 높이 세로 배치
-      return Column(
-        children: List.generate(optionCount, (i) {
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: i < optionCount - 1 ? 10 : 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: buildButton(i),
-              ),
-            ),
-          );
-        }),
-      );
-    } else {
-      // 4개+: 2x2 그리드
-      return GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 1.6,
-        ),
-        itemCount: optionCount,
-        itemBuilder: (context, i) => buildButton(i),
-      );
-    }
+    // 모든 레벨(2~4개 보기)에 대해 2열 그리드 레이아웃 적용
+    return GridView.builder(
+      shrinkWrap: true, // 익셉션 방지를 위해 내부 크기만큼 차지
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        // 보기 개수에 따라 적절한 비율 설정 (공간을 나눠쓰도록)
+        childAspectRatio: optionCount <= 2 ? 1.6 : 1.8,
+
+      ),
+      itemCount: optionCount,
+      itemBuilder: (context, i) => buildButton(i),
+    );
   }
 
   /// {(      )로} 또는 (      ) 형태의 빈칸을 (    ) 형태로 정규화
@@ -356,31 +361,44 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Widget _buildTimer(GameState state) {
     final isCritical = state.remainingSeconds <= 5;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isCritical ? Colors.red.withOpacity(0.1) : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.timer,
-            color: isCritical ? Colors.red : Colors.grey,
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${state.remainingSeconds}s',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isCritical ? Colors.red : AppTheme.text,
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(state.remainingSeconds),
+      duration: const Duration(milliseconds: 200),
+      tween: isCritical ? Tween(begin: 1.1, end: 1.0) : Tween(begin: 1.0, end: 1.0),
+      builder: (context, scale, child) {
+        return Transform.scale(
+          scale: scale,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: isCritical ? Colors.red.withOpacity(0.2) : Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isCritical ? Colors.red : Colors.white.withOpacity(0.2),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.timer,
+                  color: isCritical ? Colors.red : Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${state.remainingSeconds}s',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isCritical ? Colors.red : Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -444,113 +462,93 @@ class _QuizScreenState extends State<QuizScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // 상세 설명 - 틀렸을 때 모든 동음이의어 의미 표시
+          // 상세 설명 - 카드 디자인으로 변경
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isCorrect ? Colors.green.shade50 : Colors.red.shade50,
-              borderRadius: BorderRadius.circular(12),
+              color: isCorrect ? AppTheme.pointGreen.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: isCorrect ? Colors.green.shade200 : Colors.red.shade200,
+                color: isCorrect ? AppTheme.pointGreen.withOpacity(0.3) : Colors.red.withOpacity(0.3),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  isCorrect ? '✓ 정답 설명' : '✗ 오답 - 단어의 뜻을 확인하세요',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isCorrect ? Colors.green.shade700 : Colors.red.shade700,
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      isCorrect ? Icons.lightbulb : Icons.info_outline,
+                      size: 18,
+                      color: isCorrect ? AppTheme.pointGreen : Colors.red,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isCorrect ? 'Correct Meaning' : 'Let\'s check the meanings',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isCorrect ? AppTheme.pointGreen : Colors.red,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 // 모든 보기의 의미 나열
                 ...List.generate(question.options.length, (i) {
                   final isThisAnswer = i == question.answerIndex;
                   final isUserSelected = i == state.selectedOptionIndex;
                   final romaji = question.romaji.length > i ? question.romaji[i] : '';
-                  final englishMeaning = question.englishMeanings.length > i
-                      ? question.englishMeanings[i]
-                      : '';
-                  final explanation = question.explanations.length > i
-                      ? question.explanations[i]
-                      : '';
-                  // 표시할 뜻: 영문뜻 우선, 없으면 한국어 설명
-                  final meaningText = englishMeaning.isNotEmpty ? englishMeaning : explanation;
-                  
-                  Color iconColor;
-                  IconData iconData;
-                  if (isThisAnswer) {
-                    iconData = Icons.check_circle;
-                    iconColor = Colors.green.shade600;
-                  } else if (isUserSelected && !isCorrect) {
-                    iconData = Icons.cancel;
-                    iconColor = Colors.red.shade400;
-                  } else {
-                    iconData = Icons.circle_outlined;
-                    iconColor = Colors.grey.shade400;
-                  }
+                  final englishMeaning = (question.englishMeanings.length > i) ? question.englishMeanings[i] : '';
+                  final explanation = (question.explanations.length > i) ? question.explanations[i] : '';
 
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                  // 영문 뜻이 있으면 영문 뜻을, 없으면 한글 설명을 사용
+                  final displayMeaning = englishMeaning.isNotEmpty ? englishMeaning : explanation;
+                  
+                  final isHighlighted = isThisAnswer || isUserSelected;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isHighlighted 
+                        ? (isThisAnswer ? AppTheme.pointGreen.withOpacity(0.15) : Colors.red.withOpacity(0.15))
+                        : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(iconData, size: 16, color: iconColor),
-                        const SizedBox(width: 8),
+                        Icon(
+                          isThisAnswer ? Icons.check_circle : (isUserSelected ? Icons.cancel : Icons.circle_outlined),
+                          size: 16,
+                          color: isThisAnswer ? AppTheme.pointGreen : (isUserSelected ? Colors.red : Colors.grey),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              RichText(
-                                text: TextSpan(
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black87,
-                                    height: 1.4,
-                                  ),
-                                  children: [
-                                    TextSpan(
-                                      text: question.options[i],
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: isThisAnswer
-                                            ? Colors.green.shade700
-                                            : (isUserSelected && !isCorrect
-                                                ? Colors.red.shade600
-                                                : Colors.black87),
-                                      ),
-                                    ),
-                                    if (romaji.isNotEmpty)
-                                      TextSpan(
-                                        text: '  $romaji',
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontStyle: FontStyle.italic,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                  ],
+                          child: RichText(
+                            text: TextSpan(
+                              style: const TextStyle(fontSize: 15, color: Colors.black87),
+                              children: [
+                                TextSpan(
+                                  text: question.options[i],
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
                                 ),
-                              ),
-                              if (meaningText.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    meaningText,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: isThisAnswer
-                                          ? Colors.green.shade800
-                                          : Colors.black54,
-                                      height: 1.3,
-                                    ),
+                                if (romaji.isNotEmpty)
+                                  TextSpan(
+                                    text: ' ($romaji)',
+                                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                  ),
+                                TextSpan(
+                                  text: ' : $displayMeaning',
+                                  style: TextStyle(
+                                    color: isThisAnswer ? AppTheme.pointGreen : Colors.black54,
+                                    fontWeight: isThisAnswer ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -566,78 +564,177 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Widget _buildResult(BuildContext context, GameState state) {
-    final isPerfect = state.score == state.questions.length;
+    final accuracy = (state.questions.isNotEmpty)
+        ? (state.score / state.questions.length) * 100
+        : 0.0;
+    final isPerfect = accuracy == 100;
+    final isGood = accuracy >= 70;
+
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppTheme.background,
+              AppTheme.background.withBlue(50),
+            ],
+          ),
+        ),
+        child: SafeArea(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                isPerfect ? Icons.emoji_events : Icons.stars,
-                size: 100,
-                color: Colors.amber,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Game Finished!',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                '결과 (Result)',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: AppTheme.text.withOpacity(0.5),
-                ),
-              ),
               const SizedBox(height: 48),
-              _buildResultStat(
-                'Correct Answers (정답)',
-                '${state.score} / ${state.questions.length}',
-              ),
-              const SizedBox(height: 16),
-              _buildResultStat(
-                'Accuracy (정확도)',
-                '${((state.score / state.questions.length) * 100).toInt()}%',
-              ),
-              const SizedBox(height: 48),
-              if (state.failedQuestions.isNotEmpty)
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _viewModel.onAction(StartReview()),
-                    icon: const Icon(Icons.replay),
-                    label: Text(
-                      'Review Missed Qs (${state.failedQuestions.length})',
+              // 헤더 및 메인 아이콘
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(seconds: 1),
+                curve: Curves.elasticOut,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: child,
+                  );
+                },
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.1),
+                          ),
+                        ),
+                        Icon(
+                          isPerfect
+                              ? Icons.emoji_events
+                              : (isGood ? Icons.stars : Icons.sentiment_satisfied),
+                          size: 100,
+                          color: isPerfect ? Colors.amber : (isGood ? Colors.orange : Colors.grey[400]),
+                        ),
+                      ],
                     ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                    const SizedBox(height: 16),
+                    Text(
+                      isPerfect ? 'Perfect Score!' : (isGood ? 'Great Job!' : 'Keep Practicing!'),
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: -1,
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () => context.go('/'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.pointGreen,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+              ),
+              const SizedBox(height: 48),
+              // 결과 카드
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                      border: Border.all(color: Colors.white.withOpacity(0.1)),
                     ),
-                  ),
-                  child: const Text(
-                    'Back to Home (처음으로)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Performance Summary',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        Row(
+                          children: [
+                            _buildStatCard(
+                              'Correct',
+                              '${state.score}/${state.questions.length}',
+                              Icons.check_circle_outline,
+                              AppTheme.pointGreen,
+                            ),
+                            const SizedBox(width: 12),
+                            _buildStatCard(
+                              'Accuracy',
+                              '${accuracy.toInt()}%',
+                              Icons.auto_graph,
+                              Colors.blueAccent,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                        // 랭크 표시
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Language Rank:',
+                              style: TextStyle(color: Colors.white54, fontSize: 16),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isPerfect ? Colors.amber : (isGood ? Colors.orange : Colors.blueGrey),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                isPerfect ? 'MASTER' : (isGood ? 'EXPERT' : 'LEARNER'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        // 하단 액션 버튼들
+                        Column(
+                          children: [
+                            if (state.failedQuestions.isNotEmpty)
+                              _buildActionButton(
+                                label: 'Review Wrong Answers (${state.failedQuestions.length})',
+                                icon: Icons.replay,
+                                color: Colors.redAccent,
+                                onTap: () => _viewModel.onAction(StartReview()),
+                                isOutlined: true,
+                              ),
+                            const SizedBox(height: 12),
+                            _buildActionButton(
+                              label: 'Back to Home',
+                              icon: Icons.home,
+                              color: AppTheme.pointGreen,
+                              onTap: () => context.go('/'),
+                            ),
+                            const SizedBox(height: 24),
+                            // 가상의 공유 섹션
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildSocialIcon(Icons.share, label: 'Share'),
+                                const SizedBox(width: 32),
+                                _buildSocialIcon(Icons.download, label: 'Save Result'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -648,33 +745,94 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  Widget _buildResultStat(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.pointGreen,
+  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 16),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    bool isOutlined = false,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 60,
+      child: isOutlined
+          ? OutlinedButton.icon(
+              onPressed: onTap,
+              icon: Icon(icon, color: color),
+              label: Text(label),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: color,
+                side: BorderSide(color: color, width: 2),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+            )
+          : ElevatedButton.icon(
+              onPressed: onTap,
+              icon: Icon(icon),
+              label: Text(label),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildSocialIcon(IconData icon, {required String label}) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withOpacity(0.05),
+          ),
+          child: Icon(icon, color: Colors.white70, size: 20),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white54, fontSize: 10),
+        ),
+      ],
     );
   }
 }

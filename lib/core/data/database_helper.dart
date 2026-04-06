@@ -24,8 +24,14 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        // 데이터 생성 로직(assets/quizzes.json)이 바뀐 경우를 반영하기 위해
+        // 스키마 버전 업 시 퀴즈 테이블을 재생성한다.
+        await db.execute('DROP TABLE IF EXISTS quizzes');
+        await _onCreate(db, newVersion);
+      },
     );
   }
 

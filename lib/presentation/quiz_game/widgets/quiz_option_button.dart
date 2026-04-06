@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 enum ChoiceType { triangle, diamond, circle, square }
 
-class KahootChoiceButton extends StatelessWidget {
+class QuizOptionButton extends StatelessWidget {
   final String text;
   final String romaji;
   final String? english;
@@ -12,7 +12,7 @@ class KahootChoiceButton extends StatelessWidget {
   final bool isSelected;
   final bool isAnswer;
 
-  const KahootChoiceButton({
+  const QuizOptionButton({
     super.key,
     required this.text,
     required this.romaji,
@@ -91,19 +91,39 @@ class KahootChoiceButton extends StatelessWidget {
               const SizedBox(width: 8),
               // 중앙 텍스트 영역
               Expanded(
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '$text${romaji.isNotEmpty ? '-$romaji' : ''}${(_buildMeaning() != null) ? '-${_buildMeaning()}' : ''}',
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      text,
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
                       ),
                     ),
-                  ),
+                    if (romaji.isNotEmpty || _buildMeaning() != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          '${romaji.isNotEmpty ? romaji : ''}${_buildMeaning() != null ? ' [${_buildMeaning()}]' : ''}',
+                          textAlign: TextAlign.center,
+                          maxLines: 2, // 2줄까지 허용
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+
+                  ],
                 ),
               ),
               const SizedBox(width: 8),

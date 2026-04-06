@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:playingkorean/core/presentation/app_theme.dart';
-import 'package:playingkorean/presentation/quiz_game/game_state.dart';
-import 'package:playingkorean/presentation/quiz_game/game_view_model.dart';
-import 'package:get_it/get_it.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
           '동음이의어 퀴즈 (Homonym Quiz)',
           style: TextStyle(
             fontSize: 18,
-            color: AppTheme.text.withOpacity(0.6),
+            color: AppTheme.text.withValues(alpha: 0.6),
           ),
         ),
       ],
@@ -103,14 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.pointGreen : Colors.white.withOpacity(0.1),
+                  color: isSelected ? AppTheme.pointGreen : Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? Colors.white : Colors.white.withOpacity(0.3),
+                    color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.3),
                     width: isSelected ? 3 : 1,
                   ),
                   boxShadow: isSelected
-                      ? [BoxShadow(color: AppTheme.pointGreen.withOpacity(0.4), blurRadius: 10, spreadRadius: 2)]
+                      ? [BoxShadow(color: AppTheme.pointGreen.withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 2)]
                       : null,
                 ),
                 child: Column(
@@ -121,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       entry.value.split(' (')[0],
                       style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white.withOpacity(0.9),
+                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.9),
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -129,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       '(${entry.value.split(' (')[1]}',
                       style: TextStyle(
-                        color: isSelected ? Colors.white.withOpacity(0.8) : Colors.white.withOpacity(0.6),
+                        color: isSelected ? Colors.white.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.6),
                         fontSize: 12,
                       ),
                     ),
@@ -169,10 +166,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: const Duration(milliseconds: 200),
                     height: 56,
                     decoration: BoxDecoration(
-                      color: isSelected ? AppTheme.pointGreen : Colors.white.withOpacity(0.1),
+                      color: isSelected ? AppTheme.pointGreen : Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isSelected ? Colors.white : Colors.white.withOpacity(0.3),
+                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.3),
                         width: isSelected ? 3 : 1,
                       ),
                     ),
@@ -180,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       '$count Qs',
                       style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white.withOpacity(0.9),
+                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.9),
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),

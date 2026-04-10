@@ -16,8 +16,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, String> _levelLabels = {
     '1': 'Beginner (초급)',
     '2': 'Intermediate (중급)',
-    '3': 'Advanced (고급)',
-    '4': 'Expert (심화)',
   };
 
   @override
@@ -93,21 +91,31 @@ class _HomeScreenState extends State<HomeScreen> {
           children: _levelLabels.entries.map((entry) {
             final isSelected = _selectedLevel == entry.key;
             final stars = '⭐' * int.parse(entry.key);
-            
+
             return InkWell(
               onTap: () => setState(() => _selectedLevel = entry.key),
               borderRadius: BorderRadius.circular(20),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.pointGreen : Colors.white.withValues(alpha: 0.1),
+                  color: isSelected
+                      ? AppTheme.pointGreen
+                      : Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.3),
+                    color: isSelected
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.3),
                     width: isSelected ? 3 : 1,
                   ),
                   boxShadow: isSelected
-                      ? [BoxShadow(color: AppTheme.pointGreen.withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 2)]
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.pointGreen.withValues(alpha: 0.4),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ]
                       : null,
                 ),
                 child: Column(
@@ -118,7 +126,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       entry.value.split(' (')[0],
                       style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.9),
+                        color: isSelected
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.9),
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -126,7 +136,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       '(${entry.value.split(' (')[1]}',
                       style: TextStyle(
-                        color: isSelected ? Colors.white.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.6),
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : Colors.white.withValues(alpha: 0.6),
                         fontSize: 12,
                       ),
                     ),
@@ -166,10 +178,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: const Duration(milliseconds: 200),
                     height: 56,
                     decoration: BoxDecoration(
-                      color: isSelected ? AppTheme.pointGreen : Colors.white.withValues(alpha: 0.1),
+                      color: isSelected
+                          ? AppTheme.pointGreen
+                          : Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.3),
+                        color: isSelected
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.3),
                         width: isSelected ? 3 : 1,
                       ),
                     ),
@@ -177,7 +193,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       '$count Qs',
                       style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.9),
+                        color: isSelected
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.9),
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -209,9 +227,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           elevation: 4,
         ),
-        child: Column(
+        child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Text(
               '게임 시작 (Start Game)',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),

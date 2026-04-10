@@ -6,6 +6,7 @@ import 'package:playingkorean/presentation/quiz_game/game_state.dart';
 import 'package:playingkorean/presentation/quiz_game/game_view_model.dart';
 import 'package:playingkorean/domain/quiz/quiz_question.dart';
 import 'package:playingkorean/presentation/quiz_game/widgets/quiz_option_button.dart';
+import 'package:playingkorean/presentation/quiz_game/widgets/quiz_skeleton_loader.dart';
 
 class QuizScreen extends StatefulWidget {
   final String level;
@@ -46,10 +47,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   const SizedBox(height: 20),
                   const Text(
                     '동음이의어 문제를 찾는 중...',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -130,7 +128,11 @@ class _QuizScreenState extends State<QuizScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.search_off, color: Colors.white70, size: 60),
+                    const Icon(
+                      Icons.search_off,
+                      color: Colors.white70,
+                      size: 60,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       '이 레벨에 동음이의어 문제가\n없습니다.',
@@ -157,8 +159,21 @@ class _QuizScreenState extends State<QuizScreen> {
           );
         }
 
-        if (question == null) return const SizedBox.shrink();
-
+        if (question == null || state.questions.isEmpty) {
+          return Scaffold(
+            backgroundColor: AppTheme.background,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => context.go('/'),
+              ),
+              centerTitle: true,
+            ),
+            body: const QuizSkeletonLoader(),
+          );
+        }
 
         return Scaffold(
           backgroundColor: AppTheme.background,
@@ -194,14 +209,21 @@ class _QuizScreenState extends State<QuizScreen> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8,
+                  ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
                       minHeight: 12,
-                      value: (state.currentQuestionIndex + 1) / state.questions.length,
+                      value:
+                          (state.currentQuestionIndex + 1) /
+                          state.questions.length,
                       backgroundColor: Colors.white.withOpacity(0.1),
-                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.pointGreen),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppTheme.pointGreen,
+                      ),
                     ),
                   ),
                 ),
@@ -292,19 +314,51 @@ class _QuizScreenState extends State<QuizScreen> {
   /// 보기 버튼 렌더링 - 2개/3개: 세로, 4개+: 2x2 그리드
   /// - Column 안에 Expanded 사용 금지 (Exception 원인)
   /// - 보기에는 영문뜻(englishMeanings)만 표시
-  Widget _buildOptions(BuildContext context, GameState state, QuizQuestion question) {
+  Widget _buildOptions(
+    BuildContext context,
+    GameState state,
+    QuizQuestion question,
+  ) {
     final optionCount = question.options.length;
 
     // 안전한 값 추출 헬퍼
     String safeRomaji(int i) =>
         question.romaji.length > i ? question.romaji[i] : '';
-    String? safeEnglish(int i) {
-      // 보기에 지저분한 한글 해석을 제외하고 영문 뜻이 있으면 우선 표시
-      if (question.englishMeanings.length > i) {
-        final em = question.englishMeanings[i];
-        if (em.isNotEmpty) return em.length > 30 ? '${em.substring(0, 27)}...' : em;
+    String toConciseMeaning(String raw) {
+      var text = raw.trim();
+      if (text.isEmpty) return '';
+
+      // 괄호/대괄호 메타 정보 제거
+      text = text.replaceAll(RegExp(r'\[[^\]]*\]'), '').trim();
+      text = text.replaceAll(RegExp(r'\([^)]*\)'), '').trim();
+      if (text.isEmpty) return '';
+
+      // 첫 구/절만 사용해 핵심 의미만 노출
+      final firstChunk = text.split(RegExp(r'[;,.]')).first.trim();
+      text = firstChunk;
+      text = text.replaceFirst(
+        RegExp(r'^(a|an|the)\s+', caseSensitive: false),
+        '',
+      );
+      text = text.replaceFirst(RegExp(r'^to\s+', caseSensitive: false), 'to ');
+
+      final words = text
+          .split(RegExp(r'\s+'))
+          .where((w) => w.trim().isNotEmpty)
+          .toList();
+      if (words.length > 5) {
+        return words.take(5).join(' ');
       }
-      return null; // 한글 설명(explanations) 폴백 제거 (보기를 간결하게 유지)
+      return text;
+    }
+
+    String? safeEnglish(int i) {
+      // 보기는 항상 짧고 딱 떨어지는 영어 핵심 의미만 노출
+      if (question.englishMeanings.length > i) {
+        final concise = toConciseMeaning(question.englishMeanings[i]);
+        if (concise.isNotEmpty) return concise;
+      }
+      return null;
     }
 
     Widget buildButton(int index) {
@@ -323,17 +377,27 @@ class _QuizScreenState extends State<QuizScreen> {
       );
     }
 
-    // 모든 레벨(2~4개 보기)에 대해 2열 그리드 레이아웃 적용
+    // 2~3개 보기: 세로 배치 (폭이 좁아 보이는 문제 해결)
+    if (optionCount <= 3) {
+      return Column(
+        children: List.generate(optionCount, (i) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: i < optionCount - 1 ? 12 : 0),
+            child: SizedBox(width: double.infinity, child: buildButton(i)),
+          );
+        }),
+      );
+    }
+
+    // 4개 이상(혹시 모를 확장): 2열 그리드
     return GridView.builder(
-      shrinkWrap: true, // 익셉션 방지를 위해 내부 크기만큼 차지
+      shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        // 보기 개수에 따라 적절한 비율 설정 (공간을 나눠쓰도록)
-        childAspectRatio: optionCount <= 2 ? 1.6 : 1.8,
-
+        childAspectRatio: 1.8,
       ),
       itemCount: optionCount,
       itemBuilder: (context, i) => buildButton(i),
@@ -344,34 +408,40 @@ class _QuizScreenState extends State<QuizScreen> {
   String _formatContextText(String text) {
     // { ( ) } 패턴을 찾아서 ( ) 형태로 변환
     // 예: {(      )을} → (    )을 / {(      )로} → (    )로
-    return text.replaceAllMapped(
-      RegExp(r'\{\s*\(\s*\)\s*([가-힣]*)\}'),
-      (match) => '(    )${match.group(1) ?? ''}',
-    ).replaceAllMapped(
-      // 남은 { ( ) } 패턴 처리 (조사 없는 경우)
-      RegExp(r'\{[\s]*\([\s]*\)[\s]*\}'),
-      (match) => '(    )',
-    ).replaceAllMapped(
-      // plain (      ) 형태 처리 (공백 4개 이상)
-      RegExp(r'\(\s{4,}\)([가-힣]*)'),
-      (match) => '(    )${match.group(1) ?? ''}',
-    );
+    return text
+        .replaceAllMapped(
+          RegExp(r'\{\s*\(\s*\)\s*([가-힣]*)\}'),
+          (match) => '(    )${match.group(1) ?? ''}',
+        )
+        .replaceAllMapped(
+          // 남은 { ( ) } 패턴 처리 (조사 없는 경우)
+          RegExp(r'\{[\s]*\([\s]*\)[\s]*\}'),
+          (match) => '(    )',
+        )
+        .replaceAllMapped(
+          // plain (      ) 형태 처리 (공백 4개 이상)
+          RegExp(r'\(\s{4,}\)([가-힣]*)'),
+          (match) => '(    )${match.group(1) ?? ''}',
+        );
   }
-
 
   Widget _buildTimer(GameState state) {
     final isCritical = state.remainingSeconds <= 5;
     return TweenAnimationBuilder<double>(
       key: ValueKey(state.remainingSeconds),
       duration: const Duration(milliseconds: 200),
-      tween: isCritical ? Tween(begin: 1.1, end: 1.0) : Tween(begin: 1.0, end: 1.0),
+      tween: isCritical
+          ? Tween(begin: 1.1, end: 1.0)
+          : Tween(begin: 1.0, end: 1.0),
       builder: (context, scale, child) {
         return Transform.scale(
           scale: scale,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: isCritical ? Colors.red.withOpacity(0.2) : Colors.white.withOpacity(0.1),
+              color: isCritical
+                  ? Colors.red.withOpacity(0.2)
+                  : Colors.white.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isCritical ? Colors.red : Colors.white.withOpacity(0.2),
@@ -467,10 +537,14 @@ class _QuizScreenState extends State<QuizScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isCorrect ? AppTheme.pointGreen.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              color: isCorrect
+                  ? AppTheme.pointGreen.withOpacity(0.1)
+                  : Colors.red.withOpacity(0.1),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: isCorrect ? AppTheme.pointGreen.withOpacity(0.3) : Colors.red.withOpacity(0.3),
+                color: isCorrect
+                    ? AppTheme.pointGreen.withOpacity(0.3)
+                    : Colors.red.withOpacity(0.3),
               ),
             ),
             child: Column(
@@ -485,7 +559,9 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      isCorrect ? 'Correct Meaning' : 'Let\'s check the meanings',
+                      isCorrect
+                          ? 'Correct Meaning'
+                          : 'Let\'s check the meanings',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -499,52 +575,83 @@ class _QuizScreenState extends State<QuizScreen> {
                 ...List.generate(question.options.length, (i) {
                   final isThisAnswer = i == question.answerIndex;
                   final isUserSelected = i == state.selectedOptionIndex;
-                  final romaji = question.romaji.length > i ? question.romaji[i] : '';
-                  final englishMeaning = (question.englishMeanings.length > i) ? question.englishMeanings[i] : '';
-                  final explanation = (question.explanations.length > i) ? question.explanations[i] : '';
+                  final romaji = question.romaji.length > i
+                      ? question.romaji[i]
+                      : '';
+                  final englishMeaning = (question.englishMeanings.length > i)
+                      ? question.englishMeanings[i]
+                      : '';
+                  final explanation = (question.explanations.length > i)
+                      ? question.explanations[i]
+                      : '';
 
                   // 영문 뜻이 있으면 영문 뜻을, 없으면 한글 설명을 사용
-                  final displayMeaning = englishMeaning.isNotEmpty ? englishMeaning : explanation;
-                  
+                  final displayMeaning = englishMeaning.isNotEmpty
+                      ? englishMeaning
+                      : explanation;
+
                   final isHighlighted = isThisAnswer || isUserSelected;
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isHighlighted 
-                        ? (isThisAnswer ? AppTheme.pointGreen.withOpacity(0.15) : Colors.red.withOpacity(0.15))
-                        : Colors.transparent,
+                      color: isHighlighted
+                          ? (isThisAnswer
+                                ? AppTheme.pointGreen.withOpacity(0.15)
+                                : Colors.red.withOpacity(0.15))
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
-                          isThisAnswer ? Icons.check_circle : (isUserSelected ? Icons.cancel : Icons.circle_outlined),
+                          isThisAnswer
+                              ? Icons.check_circle
+                              : (isUserSelected
+                                    ? Icons.cancel
+                                    : Icons.circle_outlined),
                           size: 16,
-                          color: isThisAnswer ? AppTheme.pointGreen : (isUserSelected ? Colors.red : Colors.grey),
+                          color: isThisAnswer
+                              ? AppTheme.pointGreen
+                              : (isUserSelected ? Colors.red : Colors.grey),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: RichText(
                             text: TextSpan(
-                              style: const TextStyle(fontSize: 15, color: Colors.black87),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: Colors.black87,
+                              ),
                               children: [
                                 TextSpan(
                                   text: question.options[i],
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 if (romaji.isNotEmpty)
                                   TextSpan(
                                     text: ' ($romaji)',
-                                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 TextSpan(
                                   text: ' : $displayMeaning',
                                   style: TextStyle(
-                                    color: isThisAnswer ? AppTheme.pointGreen : Colors.black54,
-                                    fontWeight: isThisAnswer ? FontWeight.bold : FontWeight.normal,
+                                    color: isThisAnswer
+                                        ? AppTheme.pointGreen
+                                        : Colors.black54,
+                                    fontWeight: isThisAnswer
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                   ),
                                 ),
                               ],
@@ -577,10 +684,7 @@ class _QuizScreenState extends State<QuizScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              AppTheme.background.withBlue(50),
-            ],
+            colors: [AppTheme.background, AppTheme.background.withBlue(50)],
           ),
         ),
         child: SafeArea(
@@ -593,10 +697,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 duration: const Duration(seconds: 1),
                 curve: Curves.elasticOut,
                 builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: child,
-                  );
+                  return Transform.scale(scale: value, child: child);
                 },
                 child: Column(
                   children: [
@@ -614,15 +715,21 @@ class _QuizScreenState extends State<QuizScreen> {
                         Icon(
                           isPerfect
                               ? Icons.emoji_events
-                              : (isGood ? Icons.stars : Icons.sentiment_satisfied),
+                              : (isGood
+                                    ? Icons.stars
+                                    : Icons.sentiment_satisfied),
                           size: 100,
-                          color: isPerfect ? Colors.amber : (isGood ? Colors.orange : Colors.grey[400]),
+                          color: isPerfect
+                              ? Colors.amber
+                              : (isGood ? Colors.orange : Colors.grey[400]),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      isPerfect ? 'Perfect Score!' : (isGood ? 'Great Job!' : 'Keep Practicing!'),
+                      isPerfect
+                          ? 'Perfect Score!'
+                          : (isGood ? 'Great Job!' : 'Keep Practicing!'),
                       style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -643,7 +750,9 @@ class _QuizScreenState extends State<QuizScreen> {
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.05),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(32),
+                      ),
                       border: Border.all(color: Colors.white.withOpacity(0.1)),
                     ),
                     child: Column(
@@ -683,16 +792,28 @@ class _QuizScreenState extends State<QuizScreen> {
                           children: [
                             const Text(
                               'Language Rank:',
-                              style: TextStyle(color: Colors.white54, fontSize: 16),
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 16,
+                              ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: isPerfect ? Colors.amber : (isGood ? Colors.orange : Colors.blueGrey),
+                                color: isPerfect
+                                    ? Colors.amber
+                                    : (isGood
+                                          ? Colors.orange
+                                          : Colors.blueGrey),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                isPerfect ? 'MASTER' : (isGood ? 'EXPERT' : 'LEARNER'),
+                                isPerfect
+                                    ? 'MASTER'
+                                    : (isGood ? 'EXPERT' : 'LEARNER'),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -708,7 +829,8 @@ class _QuizScreenState extends State<QuizScreen> {
                           children: [
                             if (state.failedQuestions.isNotEmpty)
                               _buildActionButton(
-                                label: 'Review Wrong Answers (${state.failedQuestions.length})',
+                                label:
+                                    'Review Wrong Answers (${state.failedQuestions.length})',
                                 icon: Icons.replay,
                                 color: Colors.redAccent,
                                 onTap: () => _viewModel.onAction(StartReview()),
@@ -728,7 +850,10 @@ class _QuizScreenState extends State<QuizScreen> {
                               children: [
                                 _buildSocialIcon(Icons.share, label: 'Share'),
                                 const SizedBox(width: 32),
-                                _buildSocialIcon(Icons.download, label: 'Save Result'),
+                                _buildSocialIcon(
+                                  Icons.download,
+                                  label: 'Save Result',
+                                ),
                               ],
                             ),
                           ],
@@ -745,7 +870,12 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -770,10 +900,7 @@ class _QuizScreenState extends State<QuizScreen> {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ],
         ),
@@ -799,7 +926,9 @@ class _QuizScreenState extends State<QuizScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: color,
                 side: BorderSide(color: color, width: 2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
               ),
             )
           : ElevatedButton.icon(
@@ -810,7 +939,9 @@ class _QuizScreenState extends State<QuizScreen> {
                 backgroundColor: color,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
               ),
             ),
     );

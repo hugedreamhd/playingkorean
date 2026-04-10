@@ -18,7 +18,8 @@ final _router = GoRouter(
     GoRoute(
       path: '/quiz',
       builder: (context, state) {
-        final level = state.uri.queryParameters['level'] ?? '1';
+        final rawLevel = state.uri.queryParameters['level'] ?? '1';
+        final level = (rawLevel == '2') ? '2' : '1';
         final countStr = state.uri.queryParameters['count'] ?? '10';
         final count = int.tryParse(countStr) ?? 10;
         return QuizScreen(level: level, count: count);

@@ -11,23 +11,36 @@ class KoreanRomanizer {
     '', 'k', 'k', 'k', 'n', 'n', 'n', 't', 'l', 'k', 'm', 'p', 'l', 'l', 'l', 'l', 'm', 'p', 'p', 't', 't', 'ng', 't', 't', 'k', 't', 'p', 't'
   ];
 
+  /// 한글 텍스트를 음절 단위로 로마자 변환하고 하이픈으로 연결합니다.
+  /// 예: '봉사' → 'bong-sa', '눈' → 'nun'
   static String romanize(String text) {
-    StringBuffer result = StringBuffer();
-    for (int i = 0; i < text.length; i++) {
-      int charCode = text.codeUnitAt(i);
-      if (charCode >= 0xAC00 && charCode <= 0xD7A3) {
-        int hangulCode = charCode - 0xAC00;
-        int initialIndex = hangulCode ~/ (21 * 28);
-        int medialIndex = (hangulCode % (21 * 28)) ~/ 28;
-        int finalIndex = hangulCode % 28;
+    final syllables = <String>[];
+    final buffer = StringBuffer();
 
-        result.write(_initials[initialIndex]);
-        result.write(_medials[medialIndex]);
-        result.write(_finals[finalIndex]);
+    for (int i = 0; i < text.length; i++) {
+      final charCode = text.codeUnitAt(i);
+      if (charCode >= 0xAC00 && charCode <= 0xD7A3) {
+        // 이전에 누적된 비한글 문자 처리
+        if (buffer.isNotEmpty) {
+          syllables.add(buffer.toString());
+          buffer.clear();
+        }
+        final hangulCode = charCode - 0xAC00;
+        final initialIndex = hangulCode ~/ (21 * 28);
+        final medialIndex = (hangulCode % (21 * 28)) ~/ 28;
+        final finalIndex = hangulCode % 28;
+
+        syllables.add(
+          _initials[initialIndex] +
+          _medials[medialIndex] +
+          _finals[finalIndex],
+        );
       } else {
-        result.write(text[i]);
+        buffer.write(text[i]);
       }
     }
-    return result.toString();
+    if (buffer.isNotEmpty) syllables.add(buffer.toString());
+
+    return syllables.join('-');
   }
 }

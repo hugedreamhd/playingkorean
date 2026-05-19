@@ -5,20 +5,40 @@ import 'package:playingkorean/core/data/database_helper.dart';
 import 'package:playingkorean/core/domain/result.dart';
 import 'package:playingkorean/domain/quiz/quiz_question.dart';
 import 'package:playingkorean/domain/quiz/quiz_repository.dart';
-import 'package:playingkorean/data/quiz/vocabulary_seeder.dart';
 import 'package:playingkorean/core/utils/korean_romanizer.dart';
+import 'package:playingkorean/data/precomputed_homonyms.dart';
 
 class LocalQuizRepositoryImpl implements QuizRepository {
+  // vocabulary는 precomputed_homonyms.dart의 컴파일 타임 상수에서 직접 로드.
   final DatabaseHelper _dbHelper = DatabaseHelper();
-  final VocabularySeeder _seeder = VocabularySeeder();
+
+  // 출제 이력: 메모리 캐시 (DB와 동기화됨)
   static final Map<String, List<String>> _recentWordsByDifficulty = {};
   static final Map<String, List<String>> _recentContextsByDifficulty = {};
-  static const int _recentWordHistorySize = 40;
-  static const int _recentContextHistorySize = 60;
-  static const String _metaSeedOrderKey = 'seed_cycle_order';
-  static const String _metaSeedIndexKey = 'seed_cycle_index';
-  static List<String>? _seedCycleOrderCache;
-  static int? _seedCycleIndexCache;
+  // 이력 크기 200 = 20라운드(10문항 기준)분 커버
+  static const int _recentWordHistorySize = 200;
+  static const int _recentContextHistorySize = 200;
+
+  // DB에서 이력을 한 번만 로드하기 위한 플래그
+  static final Set<String> _historyLoaded = {};
+
+  static const String _metaShownWordsPrefix = 'shown_words_';
+  static const String _metaShownContextsPrefix = 'shown_contexts_';
+
+  // 사전 추출된 동음이의어를 VocabularyModel 리스트로 변환 (한 번만 실행)
+  static List<VocabularyModel>? _cachedVocab;
+  static List<VocabularyModel> _loadVocab() {
+    return _cachedVocab ??= kPrecomputedHomonyms.map((m) => VocabularyModel(
+          id: m['id']!,
+          word: m['word']!,
+          level: m['level'],
+          homonymNo: int.tryParse(m['homonymNo'] ?? '1') ?? 1,
+          definitionKr: m['definitionKr'],
+          definitionEn: m['definitionEn'],
+          lemmaEn: m['lemmaEn'],
+          exampleKr: m['exampleKr'],
+        )).toList();
+  }
   static const Set<String> _beginnerPriorityWords = {
     '밤',
     '눈',
@@ -76,6 +96,37 @@ class LocalQuizRepositoryImpl implements QuizRepository {
     '십간',
     '십이지',
   ];
+  // 초급 예문에 등장하면 안 되는 고급/전문 어휘 (문장 수준 차단)
+  static const List<String> _beginnerBlockedExamplePhrases = [
+    '통치',
+    '신당',
+    '창당',
+    '정가',
+    '국회',
+    '의회',
+    '선거운동',
+    '법정',
+    '재판',
+    '행정부',
+    '입법',
+    '헌법',
+    '탄핵',
+    '외교',
+    '조약',
+    '분쟁',
+    '혁명',
+    '봉기',
+    '궁중',
+    '왕조',
+    '성리학',
+    '유교',
+    '불교',
+    '성직자',
+    '주권',
+    '민주주의',
+    '자본주의',
+    '사회주의',
+  ];
   static const List<String> _beginnerPenaltyDefinitionKeywords = [
     '유교',
     '경전',
@@ -118,88 +169,6 @@ class LocalQuizRepositoryImpl implements QuizRepository {
     '불',
   ];
 
-  Future<void> _saveSeedCycleState(List<String> order, int index) async {
-    _seedCycleOrderCache = List<String>.from(order);
-    _seedCycleIndexCache = index;
-    await _dbHelper.setMetaValue(_metaSeedOrderKey, jsonEncode(order));
-    await _dbHelper.setMetaValue(_metaSeedIndexKey, index.toString());
-  }
-
-  bool _isValidSeedOrder(List<String> order) {
-    const files = VocabularySeeder.jsonFiles;
-    if (order.length != files.length) return false;
-    final orderSet = order.toSet();
-    return orderSet.length == files.length && orderSet.containsAll(files);
-  }
-
-  Future<({List<String> order, int index})> _loadSeedCycleState() async {
-    if (_seedCycleOrderCache != null && _seedCycleIndexCache != null) {
-      final normalized = _seedCycleIndexCache!.clamp(
-        0,
-        _seedCycleOrderCache!.length,
-      );
-      return (order: _seedCycleOrderCache!, index: normalized);
-    }
-
-    const files = VocabularySeeder.jsonFiles;
-    final savedOrderRaw = await _dbHelper.getMetaValue(_metaSeedOrderKey);
-    final savedIndexRaw = await _dbHelper.getMetaValue(_metaSeedIndexKey);
-
-    List<String>? savedOrder;
-    if (savedOrderRaw != null && savedOrderRaw.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(savedOrderRaw);
-        if (decoded is List) {
-          savedOrder = decoded.map((e) => e.toString()).toList();
-        }
-      } catch (_) {
-        savedOrder = null;
-      }
-    }
-
-    int savedIndex = int.tryParse(savedIndexRaw ?? '') ?? 0;
-
-    if (savedOrder == null || !_isValidSeedOrder(savedOrder)) {
-      final newOrder = List<String>.from(files)..shuffle(Random());
-      await _saveSeedCycleState(newOrder, 0);
-      return (order: newOrder, index: 0);
-    }
-
-    if (savedIndex < 0 || savedIndex > savedOrder.length) {
-      savedIndex = 0;
-    }
-
-    _seedCycleOrderCache = savedOrder;
-    _seedCycleIndexCache = savedIndex;
-    return (order: savedOrder, index: savedIndex);
-  }
-
-  Future<List<String>> _nextSeedWindow({int size = 3}) async {
-    if (size <= 0) return const [];
-    const files = VocabularySeeder.jsonFiles;
-    if (files.isEmpty) return const [];
-
-    final state = await _loadSeedCycleState();
-    var order = List<String>.from(state.order);
-    var index = state.index;
-    final window = <String>[];
-
-    while (window.length < size) {
-      if (index >= order.length) {
-        order = List<String>.from(files)..shuffle(Random());
-        index = 0;
-      }
-
-      final remainingToFill = size - window.length;
-      final endExclusive = min(index + remainingToFill, order.length);
-      window.addAll(order.sublist(index, endExclusive));
-      index = endExclusive;
-    }
-
-    await _saveSeedCycleState(order, index);
-    return window;
-  }
-
   static List<String> _levelPriorityFromDifficulty(String difficulty) {
     // 현재는 초급/중급만 운영
     if (difficulty == '2') return const ['중급', '초급'];
@@ -215,7 +184,7 @@ class LocalQuizRepositoryImpl implements QuizRepository {
     if (e.isEmpty) return false;
     if (!e.contains(word)) return false;
 
-    final minLen = difficulty == '1' ? 10 : 10;
+    final minLen = difficulty == '1' ? 5 : 10;
     final maxLen = difficulty == '1' ? 34 : 52;
     if (e.length < minLen || e.length > maxLen) return false;
 
@@ -236,11 +205,22 @@ class LocalQuizRepositoryImpl implements QuizRepository {
       if (e.contains(p)) return false;
     }
 
+    // 초급에서는 고급/전문 어휘가 포함된 예문 제외
+    if (difficulty == '1') {
+      for (final p in _beginnerBlockedExamplePhrases) {
+        if (e.contains(p)) return false;
+      }
+    }
+
     // 특수문자/메타 기호 과다 문장 제거
     if (RegExp(r'[<>\[\]{}※]').hasMatch(e)) return false;
     if (RegExp(r'[A-Za-z]{4,}').hasMatch(e)) return false;
     if (e.startsWith('(') || e.endsWith(')')) return false;
-    if (e.split(' ').length < (difficulty == '1' ? 3 : 2)) return false;
+    final tokenCount = e
+        .split(RegExp(r'\s+'))
+        .where((t) => t.trim().isNotEmpty)
+        .length;
+    if (tokenCount < (difficulty == '1' ? 2 : 3)) return false;
 
     return true;
   }
@@ -303,8 +283,48 @@ class LocalQuizRepositoryImpl implements QuizRepository {
     return score;
   }
 
-  static bool _isBeginnerFriendlySense(VocabularyModel s) {
-    return _beginnerSenseScore(s) >= 70;
+
+  /// DB에서 해당 난이도의 출제 이력을 로드 (앱 세션당 1회)
+  Future<void> _ensureHistoryLoaded(String difficulty) async {
+    if (_historyLoaded.contains(difficulty)) return;
+    _historyLoaded.add(difficulty);
+
+    try {
+      final wordsRaw = await _dbHelper.getMetaValue(
+          '$_metaShownWordsPrefix$difficulty');
+      if (wordsRaw != null && wordsRaw.isNotEmpty) {
+        final decoded = jsonDecode(wordsRaw);
+        if (decoded is List) {
+          _recentWordsByDifficulty[difficulty] =
+              decoded.map((e) => e.toString()).toList();
+        }
+      }
+      final contextsRaw = await _dbHelper.getMetaValue(
+          '$_metaShownContextsPrefix$difficulty');
+      if (contextsRaw != null && contextsRaw.isNotEmpty) {
+        final decoded = jsonDecode(contextsRaw);
+        if (decoded is List) {
+          _recentContextsByDifficulty[difficulty] =
+              decoded.map((e) => e.toString()).toList();
+        }
+      }
+    } catch (_) {
+      // 이력 로드 실패 시 빈 이력으로 진행
+    }
+  }
+
+  /// 출제 이력을 DB에 영구 저장
+  Future<void> _saveHistory(String difficulty) async {
+    try {
+      final words = _recentWordsByDifficulty[difficulty] ?? [];
+      final contexts = _recentContextsByDifficulty[difficulty] ?? [];
+      await _dbHelper.setMetaValue(
+          '$_metaShownWordsPrefix$difficulty', jsonEncode(words));
+      await _dbHelper.setMetaValue(
+          '$_metaShownContextsPrefix$difficulty', jsonEncode(contexts));
+    } catch (_) {
+      // 저장 실패 시 무시 (다음 라운드에서 재시도)
+    }
   }
 
   @override
@@ -316,48 +336,13 @@ class LocalQuizRepositoryImpl implements QuizRepository {
       final selectedDifficulty = difficulty ?? '1';
       final preferredLevels = _levelPriorityFromDifficulty(selectedDifficulty);
       final takeCount = count ?? 10;
-      final seedWindow = await _nextSeedWindow(size: 3);
 
-      // 1) 시딩: 11개 파일을 랜덤 순서로 한 바퀴 소진 후 재셔플
-      final isEmpty = await _dbHelper.isVocabularyEmpty();
-      if (isEmpty) {
-        await _seeder.seed(
-          files: seedWindow,
-          maxEntriesPerFile: 500,
-          maxTotalItems: 2500,
-        );
-      } else {
-        // 과거 실패 시딩(0~소량 삽입) 자동 복구 + 윈도우 보강 시딩
-        final totalRows = await _dbHelper.countVocabularyRows();
-        if (totalRows < 2500) {
-          await _dbHelper.clearVocabulary();
-          await _seeder.seed(
-            files: seedWindow,
-            maxEntriesPerFile: 500,
-            maxTotalItems: 2500,
-          );
-        } else {
-          // 매 회차마다 다른 파일 윈도우를 소량 보강해 다양성 확장
-          await _seeder.seed(
-            files: seedWindow,
-            maxEntriesPerFile: 180,
-            maxTotalItems: 900,
-          );
-        }
-      }
-
-      // 2) 동음이의어 문맥 퀴즈 생성 (단어 중복 최소화)
-      // - word별로 homonym_no가 2개 이상인 그룹만 사용
-      // - 한 단어당 1문항만 출제하여 "구, 구, 구..." 반복 방지
+      // 컴파일 타임 상수에서 즉시 로드 — JSON 스캔/DB 시딩 불필요
       final random = Random();
+      final allRows = _loadVocab();
 
-      final db = await _dbHelper.database;
-      final maps = await db.query(
-        'vocabulary',
-        where: "IFNULL(example_kr, '') != ''",
-        limit: 15000,
-      );
-      final allRows = maps.map((m) => VocabularyModel.fromMap(m)).toList();
+      // DB에서 이력 로드 (세션 첫 호출 시 1회)
+      await _ensureHistoryLoaded(selectedDifficulty);
 
       final Map<String, Map<int, VocabularyModel>> groupedByWord = {};
       final Map<String, Set<String>> wordLevels = {};
@@ -402,19 +387,37 @@ class LocalQuizRepositoryImpl implements QuizRepository {
 
       final recentWords =
           _recentWordsByDifficulty[selectedDifficulty] ?? <String>[];
-      final recentContexts =
-          _recentContextsByDifficulty[selectedDifficulty] ?? <String>[];
       final candidateWords = groupedByWord.keys.where((w) {
         final senses = groupedByWord[w]!.values.toList();
         if (senses.length < 2) return false;
+
+        final levels = wordLevels[w] ?? const <String>{};
         if (selectedDifficulty == '1') {
+          // 초급 퀴즈: 고급-고급 쌍 제외 (초급 또는 중급 항목이 최소 1개 있어야 함)
+          if (!levels.contains('초급') && !levels.contains('중급')) return false;
           final usable = senses
               .where((s) => !_isHardBlockedBeginnerSense(s))
               .toList();
           return usable.length >= 2;
         }
+        if (selectedDifficulty == '2') {
+          // 중급 퀴즈: 초급 또는 중급 항목이 하나라도 있어야 함
+          if (!levels.contains('중급') && !levels.contains('초급')) return false;
+        }
         return true;
       }).toList();
+
+      // Fix 3: 이력이 전체 풀의 80% 이상이면 round-robin 리셋
+      if (recentWords.length >= (candidateWords.length * 0.8).ceil() &&
+          candidateWords.isNotEmpty) {
+        _recentWordsByDifficulty[selectedDifficulty] = [];
+        _recentContextsByDifficulty[selectedDifficulty] = [];
+        await _saveHistory(selectedDifficulty);
+      }
+      final effectiveRecentWords =
+          _recentWordsByDifficulty[selectedDifficulty] ?? <String>[];
+      final effectiveRecentContexts =
+          _recentContextsByDifficulty[selectedDifficulty] ?? <String>[];
 
       // 우선순위(선택 난이도와 가까운 레벨) + 랜덤 섞기
       candidateWords.shuffle(random);
@@ -422,31 +425,11 @@ class LocalQuizRepositoryImpl implements QuizRepository {
 
       // 최근 출제 단어는 우선 제외해서 반복을 줄인다.
       final filteredWords = candidateWords
-          .where((w) => !recentWords.contains(w))
+          .where((w) => !effectiveRecentWords.contains(w))
           .toList();
       List<String> wordsToUse = filteredWords.length >= takeCount
           ? filteredWords
           : candidateWords;
-      if (selectedDifficulty == '1') {
-        // 초급은 우선 화이트리스트 단어만 사용
-        final priority = wordsToUse
-            .where(_beginnerPriorityWords.contains)
-            .toList();
-        if (priority.length >= takeCount) {
-          wordsToUse = priority;
-        } else {
-          // 모자라면 초급 friendly sense가 있는 단어를 단계적으로 추가
-          final extra = wordsToUse.where((w) {
-            final senses = groupedByWord[w]!.values.toList();
-            return senses.any(_isBeginnerFriendlySense);
-          }).toList();
-          final merged = <String>[...priority];
-          for (final w in extra) {
-            if (!merged.contains(w)) merged.add(w);
-          }
-          wordsToUse = merged;
-        }
-      }
       if (wordsToUse.isEmpty) {
         wordsToUse = candidateWords;
       } else if (wordsToUse.length < takeCount) {
@@ -458,6 +441,7 @@ class LocalQuizRepositoryImpl implements QuizRepository {
       }
 
       final List<QuizQuestion> quizPool = [];
+      final Set<String> seenQuestionKeys = <String>{};
 
       for (final word in wordsToUse) {
         if (quizPool.length >= takeCount) break;
@@ -492,6 +476,12 @@ class LocalQuizRepositoryImpl implements QuizRepository {
             senses = usable;
           }
         }
+        // 영어 뜻이 없는 sense는 보기에서 제외 (뜻 없는 보기 방지)
+        senses = senses.where((s) {
+          final en = (s.definitionEn ?? '').trim();
+          final lemma = (s.lemmaEn ?? '').trim();
+          return en.isNotEmpty || lemma.isNotEmpty;
+        }).toList();
         senses.shuffle(random);
         final optionSize = selectedDifficulty == '1'
             ? 2
@@ -524,51 +514,35 @@ class LocalQuizRepositoryImpl implements QuizRepository {
         final relaxedExampleOk =
             example.isNotEmpty &&
             example.contains(word) &&
-            example.length >= 6 &&
-            example.length <= 56;
+            example.length >= (selectedDifficulty == '1' ? 5 : 10) &&
+            example.length <= 56 &&
+            example
+                    .split(RegExp(r'\s+'))
+                    .where((t) => t.trim().isNotEmpty)
+                    .length >=
+                (selectedDifficulty == '1' ? 2 : 3);
         if (!(strictExampleOk || relaxedExampleOk)) continue;
         // 최근 예문 회피는 너무 강하면 0문항이 되므로, 충분히 모였을 때만 강하게 적용
-        if (recentContexts.contains(example) &&
+        if (effectiveRecentContexts.contains(example) &&
             quizPool.length >= (takeCount ~/ 2)) {
           continue;
         }
         final contextText = example.replaceAll(word, '(    )');
-
-        final options = pickedSenses.map((s) => s.word).toList();
-        final romaji = pickedSenses.map((s) {
-          final p = (s.pronunciation ?? '').trim();
-          return p.isNotEmpty ? p : KoreanRomanizer.romanize(s.word);
-        }).toList();
-        final englishMeanings = pickedSenses.map((s) {
-          final en = (s.definitionEn ?? '').trim();
-          if (en.isNotEmpty) return en;
-          return (s.lemmaEn ?? '').trim();
-        }).toList();
-        final explanations = pickedSenses
-            .map((s) => (s.definitionKr ?? '').trim())
-            .toList();
-
-        final correctIdx = pickedSenses.indexWhere((s) => s.id == target.id);
-        if (correctIdx < 0) continue;
-        final indices = List<int>.generate(optionSize, (i) => i)
-          ..shuffle(random);
-        final shuffledAnswerIndex = indices.indexOf(correctIdx);
-
-        quizPool.add(
-          QuizQuestion(
-            id: 'seed_${target.id}',
-            imageUrl: '',
+        final questionKey = '$word|$contextText';
+        if (!seenQuestionKeys.contains(questionKey)) {
+          final q = _buildQuestion(
+            pickedSenses: pickedSenses,
+            target: target,
             contextText: contextText,
-            options: indices.map((i) => options[i]).toList(),
-            romaji: indices.map((i) => romaji[i]).toList(),
-            englishMeanings: indices.map((i) => englishMeanings[i]).toList(),
-            optionImages: List.filled(optionSize, ''),
-            explanations: indices.map((i) => explanations[i]).toList(),
-            exampleSentences: List.filled(optionSize, ''),
             difficulty: selectedDifficulty,
-            answerIndex: shuffledAnswerIndex,
-          ),
-        );
+            idPrefix: 'seed_',
+            random: random,
+          );
+          if (q != null) {
+            seenQuestionKeys.add(questionKey);
+            quizPool.add(q);
+          }
+        }
       }
 
       // 3) 2차 폴백: 목표 문항 수에 못 미치면 최소 조건으로 추가 생성
@@ -585,6 +559,12 @@ class LocalQuizRepositoryImpl implements QuizRepository {
                   _beginnerSenseScore(b).compareTo(_beginnerSenseScore(a)),
             );
           }
+          // 영어 뜻이 없는 sense는 보기에서 제외
+          senses = senses.where((s) {
+            final en = (s.definitionEn ?? '').trim();
+            final lemma = (s.lemmaEn ?? '').trim();
+            return en.isNotEmpty || lemma.isNotEmpty;
+          }).toList();
           senses = List<VocabularyModel>.from(senses)..shuffle(random);
           final optionSize = selectedDifficulty == '1'
               ? 2
@@ -603,43 +583,29 @@ class LocalQuizRepositoryImpl implements QuizRepository {
 
           final example = (target.exampleKr ?? '').trim();
           if (example.isEmpty || !example.contains(word)) continue;
+          final fallbackTokenCount = example
+              .split(RegExp(r'\s+'))
+              .where((t) => t.trim().isNotEmpty)
+              .length;
+          final minLen = selectedDifficulty == '1' ? 5 : 10;
+          final minTokens = selectedDifficulty == '1' ? 2 : 3;
+          if (example.length < minLen || fallbackTokenCount < minTokens) continue;
           final contextText = example.replaceAll(word, '(    )');
-
-          final options = pickedSenses.map((s) => s.word).toList();
-          final romaji = pickedSenses.map((s) {
-            final p = (s.pronunciation ?? '').trim();
-            return p.isNotEmpty ? p : KoreanRomanizer.romanize(s.word);
-          }).toList();
-          final englishMeanings = pickedSenses.map((s) {
-            final en = (s.definitionEn ?? '').trim();
-            if (en.isNotEmpty) return en;
-            return (s.lemmaEn ?? '').trim();
-          }).toList();
-          final explanations = pickedSenses
-              .map((s) => (s.definitionKr ?? '').trim())
-              .toList();
-
-          final correctIdx = pickedSenses.indexWhere((s) => s.id == target.id);
-          if (correctIdx < 0) continue;
-          final indices = List<int>.generate(optionSize, (i) => i)
-            ..shuffle(random);
-          final shuffledAnswerIndex = indices.indexOf(correctIdx);
-
-          quizPool.add(
-            QuizQuestion(
-              id: 'seed_fallback_${target.id}',
-              imageUrl: '',
+          final questionKey = '$word|$contextText';
+          if (!seenQuestionKeys.contains(questionKey)) {
+            final q = _buildQuestion(
+              pickedSenses: pickedSenses,
+              target: target,
               contextText: contextText,
-              options: indices.map((i) => options[i]).toList(),
-              romaji: indices.map((i) => romaji[i]).toList(),
-              englishMeanings: indices.map((i) => englishMeanings[i]).toList(),
-              optionImages: List.filled(optionSize, ''),
-              explanations: indices.map((i) => explanations[i]).toList(),
-              exampleSentences: List.filled(optionSize, ''),
               difficulty: selectedDifficulty,
-              answerIndex: shuffledAnswerIndex,
-            ),
-          );
+              idPrefix: 'seed_fallback_',
+              random: random,
+            );
+            if (q != null) {
+              seenQuestionKeys.add(questionKey);
+              quizPool.add(q);
+            }
+          }
         }
       }
 
@@ -647,38 +613,8 @@ class LocalQuizRepositoryImpl implements QuizRepository {
         return const Result.failure('이 레벨에 동음이의어 문맥 퀴즈를 만들 수 있는 데이터가 없습니다.');
       }
 
-      // 4) 최종 안전장치: 어떤 경우에도 요청 문항 수를 맞춘다.
-      if (quizPool.length < takeCount) {
-        final base = List<QuizQuestion>.from(quizPool);
-        int pad = 0;
-        while (quizPool.length < takeCount && base.isNotEmpty) {
-          final source = base[pad % base.length];
-          final optionCount = source.options.length;
-          final indices = List<int>.generate(optionCount, (i) => i)
-            ..shuffle(random);
-          final remixedAnswerIndex = indices.indexOf(source.answerIndex);
-          quizPool.add(
-            QuizQuestion(
-              id: '${source.id}_pad_$pad',
-              imageUrl: source.imageUrl,
-              contextText: source.contextText,
-              options: indices.map((i) => source.options[i]).toList(),
-              romaji: indices.map((i) => source.romaji[i]).toList(),
-              englishMeanings: indices
-                  .map((i) => source.englishMeanings[i])
-                  .toList(),
-              optionImages: indices.map((i) => source.optionImages[i]).toList(),
-              explanations: indices.map((i) => source.explanations[i]).toList(),
-              exampleSentences: indices
-                  .map((i) => source.exampleSentences[i])
-                  .toList(),
-              difficulty: source.difficulty,
-              answerIndex: remixedAnswerIndex,
-            ),
-          );
-          pad++;
-        }
-      }
+      // 최종 단계에서는 중복 패딩을 하지 않는다.
+      // (같은 문제를 반복해서 10개를 맞추는 현상 방지)
 
       quizPool.shuffle(random);
       final result = takeCount < quizPool.length
@@ -694,7 +630,7 @@ class LocalQuizRepositoryImpl implements QuizRepository {
           .map((q) => q.contextText)
           .where((c) => c.isNotEmpty)
           .toList();
-      final merged = [...usedWords, ...recentWords];
+      final merged = [...usedWords, ...effectiveRecentWords];
       final dedup = <String>[];
       for (final w in merged) {
         if (!dedup.contains(w)) dedup.add(w);
@@ -702,7 +638,7 @@ class LocalQuizRepositoryImpl implements QuizRepository {
       _recentWordsByDifficulty[selectedDifficulty] = dedup
           .take(_recentWordHistorySize)
           .toList();
-      final mergedContexts = [...usedContexts, ...recentContexts];
+      final mergedContexts = [...usedContexts, ...effectiveRecentContexts];
       final dedupContexts = <String>[];
       for (final c in mergedContexts) {
         if (!dedupContexts.contains(c)) dedupContexts.add(c);
@@ -711,10 +647,57 @@ class LocalQuizRepositoryImpl implements QuizRepository {
           .take(_recentContextHistorySize)
           .toList();
 
+      // Fix 2: 이력을 DB에 영구 저장
+      await _saveHistory(selectedDifficulty);
+
       return Result.success(result);
     } catch (e, stack) {
       return Result.failure('퀴즈 데이터 생성 중 오류 발생: $e\n$stack');
     }
+  }
+
+  /// pickedSenses로부터 QuizQuestion을 조립한다.
+  /// correctIdx가 유효하지 않으면 null 반환.
+  QuizQuestion? _buildQuestion({
+    required List<VocabularyModel> pickedSenses,
+    required VocabularyModel target,
+    required String contextText,
+    required String difficulty,
+    required String idPrefix,
+    required Random random,
+  }) {
+    final optionSize = pickedSenses.length;
+    final options = pickedSenses.map((s) => s.word).toList();
+    final romaji = pickedSenses.map((s) {
+      final p = (s.pronunciation ?? '').trim();
+      return p.isNotEmpty ? p : KoreanRomanizer.romanize(s.word);
+    }).toList();
+    final englishMeanings = pickedSenses.map((s) {
+      final en = (s.definitionEn ?? '').trim();
+      return en.isNotEmpty ? en : (s.lemmaEn ?? '').trim();
+    }).toList();
+    final explanations =
+        pickedSenses.map((s) => (s.definitionKr ?? '').trim()).toList();
+
+    final correctIdx = pickedSenses.indexWhere((s) => s.id == target.id);
+    if (correctIdx < 0) return null;
+
+    final indices = List<int>.generate(optionSize, (i) => i)..shuffle(random);
+    final shuffledAnswerIndex = indices.indexOf(correctIdx);
+
+    return QuizQuestion(
+      id: '$idPrefix${target.id}',
+      imageUrl: '',
+      contextText: contextText,
+      options: indices.map((i) => options[i]).toList(),
+      romaji: indices.map((i) => romaji[i]).toList(),
+      englishMeanings: indices.map((i) => englishMeanings[i]).toList(),
+      optionImages: List.filled(optionSize, ''),
+      explanations: indices.map((i) => explanations[i]).toList(),
+      exampleSentences: List.filled(optionSize, ''),
+      difficulty: difficulty,
+      answerIndex: shuffledAnswerIndex,
+    );
   }
 
   @override

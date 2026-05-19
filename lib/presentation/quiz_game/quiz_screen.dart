@@ -4,8 +4,8 @@ import 'package:playingkorean/core/di/di_setup.dart';
 import 'package:playingkorean/core/presentation/app_theme.dart';
 import 'package:playingkorean/presentation/quiz_game/game_state.dart';
 import 'package:playingkorean/presentation/quiz_game/game_view_model.dart';
-import 'package:playingkorean/domain/quiz/quiz_question.dart';
-import 'package:playingkorean/presentation/quiz_game/widgets/quiz_option_button.dart';
+import 'package:playingkorean/presentation/quiz_game/widgets/quiz_answer_feedback.dart';
+import 'package:playingkorean/presentation/quiz_game/widgets/quiz_options_panel.dart';
 import 'package:playingkorean/presentation/quiz_game/widgets/quiz_skeleton_loader.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -287,10 +287,13 @@ class _QuizScreenState extends State<QuizScreen> {
                 // 보기 버튼
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-
-                  child: _buildOptions(context, state, question),
+                  child: QuizOptionsPanel(
+                    question: question,
+                    state: state,
+                    onSelect: (i) => _viewModel.onAction(SelectOption(i)),
+                  ),
                 ),
-                // 하단 액션 (정답 확인 후 슬라이드 업)
+                // 하단 피드백 (정답 확인 후 슬라이드 업)
                 if (state.lastAnswerCorrect != null)
                   TweenAnimationBuilder<double>(
                     tween: Tween(begin: 1.0, end: 0.0),
@@ -301,106 +304,17 @@ class _QuizScreenState extends State<QuizScreen> {
                         child: child,
                       );
                     },
-                    child: _buildPostAnswerActions(context, state, question),
+                    child: QuizAnswerFeedback(
+                      state: state,
+                      question: question,
+                      onNext: () => _viewModel.onAction(NextQuestion()),
+                    ),
                   ),
               ],
             ),
           ),
         );
       },
-    );
-  }
-
-  /// 보기 버튼 렌더링 - 2개/3개: 세로, 4개+: 2x2 그리드
-  /// - Column 안에 Expanded 사용 금지 (Exception 원인)
-  /// - 보기에는 영문뜻(englishMeanings)만 표시
-  Widget _buildOptions(
-    BuildContext context,
-    GameState state,
-    QuizQuestion question,
-  ) {
-    final optionCount = question.options.length;
-
-    // 안전한 값 추출 헬퍼
-    String safeRomaji(int i) =>
-        question.romaji.length > i ? question.romaji[i] : '';
-    String toConciseMeaning(String raw) {
-      var text = raw.trim();
-      if (text.isEmpty) return '';
-
-      // 괄호/대괄호 메타 정보 제거
-      text = text.replaceAll(RegExp(r'\[[^\]]*\]'), '').trim();
-      text = text.replaceAll(RegExp(r'\([^)]*\)'), '').trim();
-      if (text.isEmpty) return '';
-
-      // 첫 구/절만 사용해 핵심 의미만 노출
-      final firstChunk = text.split(RegExp(r'[;,.]')).first.trim();
-      text = firstChunk;
-      text = text.replaceFirst(
-        RegExp(r'^(a|an|the)\s+', caseSensitive: false),
-        '',
-      );
-      text = text.replaceFirst(RegExp(r'^to\s+', caseSensitive: false), 'to ');
-
-      final words = text
-          .split(RegExp(r'\s+'))
-          .where((w) => w.trim().isNotEmpty)
-          .toList();
-      if (words.length > 5) {
-        return words.take(5).join(' ');
-      }
-      return text;
-    }
-
-    String? safeEnglish(int i) {
-      // 보기는 항상 짧고 딱 떨어지는 영어 핵심 의미만 노출
-      if (question.englishMeanings.length > i) {
-        final concise = toConciseMeaning(question.englishMeanings[i]);
-        if (concise.isNotEmpty) return concise;
-      }
-      return null;
-    }
-
-    Widget buildButton(int index) {
-      final isCorrect = state.lastAnswerCorrect;
-      final isSelected = state.selectedOptionIndex == index;
-      final isAnswer = index == question.answerIndex;
-      return QuizOptionButton(
-        text: question.options[index],
-        romaji: safeRomaji(index),
-        english: safeEnglish(index),
-        type: ChoiceType.values[index % 4],
-        onTap: () => _viewModel.onAction(SelectOption(index)),
-        isCorrect: isCorrect,
-        isSelected: isSelected,
-        isAnswer: isAnswer,
-      );
-    }
-
-    // 2~3개 보기: 세로 배치 (폭이 좁아 보이는 문제 해결)
-    if (optionCount <= 3) {
-      return Column(
-        children: List.generate(optionCount, (i) {
-          return Padding(
-            padding: EdgeInsets.only(bottom: i < optionCount - 1 ? 12 : 0),
-            child: SizedBox(width: double.infinity, child: buildButton(i)),
-          );
-        }),
-      );
-    }
-
-    // 4개 이상(혹시 모를 확장): 2열 그리드
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.8,
-      ),
-      itemCount: optionCount,
-      itemBuilder: (context, i) => buildButton(i),
     );
   }
 
@@ -469,204 +383,6 @@ class _QuizScreenState extends State<QuizScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildPostAnswerActions(
-    BuildContext context,
-    GameState state,
-    QuizQuestion question,
-  ) {
-    final isCorrect = state.lastAnswerCorrect ?? false;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isCorrect ? Icons.check_circle : Icons.cancel,
-                color: isCorrect ? AppTheme.pointGreen : Colors.red,
-                size: 32,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  isCorrect ? 'Correct! (정답입니다)' : 'Wrong... (틀렸습니다)',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isCorrect ? AppTheme.pointGreen : Colors.red,
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => _viewModel.onAction(NextQuestion()),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.pointGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Next (다음)',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // 상세 설명 - 카드 디자인으로 변경
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isCorrect
-                  ? AppTheme.pointGreen.withOpacity(0.1)
-                  : Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: isCorrect
-                    ? AppTheme.pointGreen.withOpacity(0.3)
-                    : Colors.red.withOpacity(0.3),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isCorrect ? Icons.lightbulb : Icons.info_outline,
-                      size: 18,
-                      color: isCorrect ? AppTheme.pointGreen : Colors.red,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isCorrect
-                          ? 'Correct Meaning'
-                          : 'Let\'s check the meanings',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isCorrect ? AppTheme.pointGreen : Colors.red,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // 모든 보기의 의미 나열
-                ...List.generate(question.options.length, (i) {
-                  final isThisAnswer = i == question.answerIndex;
-                  final isUserSelected = i == state.selectedOptionIndex;
-                  final romaji = question.romaji.length > i
-                      ? question.romaji[i]
-                      : '';
-                  final englishMeaning = (question.englishMeanings.length > i)
-                      ? question.englishMeanings[i]
-                      : '';
-                  final explanation = (question.explanations.length > i)
-                      ? question.explanations[i]
-                      : '';
-
-                  // 영문 뜻이 있으면 영문 뜻을, 없으면 한글 설명을 사용
-                  final displayMeaning = englishMeaning.isNotEmpty
-                      ? englishMeaning
-                      : explanation;
-
-                  final isHighlighted = isThisAnswer || isUserSelected;
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isHighlighted
-                          ? (isThisAnswer
-                                ? AppTheme.pointGreen.withOpacity(0.15)
-                                : Colors.red.withOpacity(0.15))
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          isThisAnswer
-                              ? Icons.check_circle
-                              : (isUserSelected
-                                    ? Icons.cancel
-                                    : Icons.circle_outlined),
-                          size: 16,
-                          color: isThisAnswer
-                              ? AppTheme.pointGreen
-                              : (isUserSelected ? Colors.red : Colors.grey),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              style: const TextStyle(
-                                fontSize: 15,
-                                color: Colors.black87,
-                              ),
-                              children: [
-                                TextSpan(
-                                  text: question.options[i],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                if (romaji.isNotEmpty)
-                                  TextSpan(
-                                    text: ' ($romaji)',
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                TextSpan(
-                                  text: ' : $displayMeaning',
-                                  style: TextStyle(
-                                    color: isThisAnswer
-                                        ? AppTheme.pointGreen
-                                        : Colors.black54,
-                                    fontWeight: isThisAnswer
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 

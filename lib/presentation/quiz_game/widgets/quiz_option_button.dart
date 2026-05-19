@@ -94,35 +94,58 @@ class QuizOptionButton extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      text,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                      ),
+                    // 단어 + 발음(romaji)을 같은 줄에 배치
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            text,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                        if (romaji.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '[ $romaji ]',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.85),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    if (romaji.isNotEmpty || _buildMeaning() != null)
+                    // 뜻(english)은 별도 줄에
+                    if (_buildMeaning() != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4.0),
                         child: Text(
-                          '${romaji.isNotEmpty ? romaji : ''}${_buildMeaning() != null ? ' [${_buildMeaning()}]' : ''}',
+                          _buildMeaning()!,
                           textAlign: TextAlign.center,
-                          maxLines: 2, // 2줄까지 허용
+                          maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            fontStyle: FontStyle.italic,
                           ),
                         ),
                       ),
-
                   ],
                 ),
               ),

@@ -118,7 +118,7 @@ class KTraditionalPainter extends CustomPainter {
 
     // 하나의 매듭 Path를 그리는 함수
     // 각 모서리에 save/translate/scale로 적용합니다.
-    void drawAuspiciousKnot(double cx, double cy, double signX, double signY) {
+    void drawAuspiciousKnot(double cx, double cy, double signX, double signY, int trigramType) {
       canvas.save();
       canvas.translate(cx, cy);
       canvas.scale(signX, signY);
@@ -136,50 +136,89 @@ class KTraditionalPainter extends CustomPainter {
       // 이 루프는 테두리의 끝 단자와 연결되는 것이 아니라, 테두리 *안쪽*에 위치합니다.
       // 따라서 테두리 직선은 직선으로 유지하고, 이 루프는 그 안쪽에서 그립니다.
 
-      // 2. **내부 얽힘 (Inner Intertwining, 얇은 선)**
-      // 외부 루프 안쪽에서 두 개의 고리가 서로 엇갈리는 복잡한 모양.
-      // 사용자 코드의 cubicTo는 너무 복잡해서 어설픈 모양을 만듭니다. 더 단순하고 깔끔한 얽힌 루프를 만듭니다.
-      
-      final Path innerKnotPath = Path();
-      
-      // 첫 번째 이미지의 얇은 선 루프는 가로 고리와 세로 고리가 서로 엇갈립니다.
-      // 이 두 개의 고리를 그리기 위해 Path를 두 부분으로 나눕니다.
+      // 2. **태극기 건곤감리 괘(Trigram) 디자인**
+      void drawTrigram(int type, Offset center, double angleRad) {
+        canvas.save();
+        canvas.translate(center.dx, center.dy);
+        canvas.rotate(angleRad); // 모서리 대각선 45도 정렬
 
-      // [가로 고리]
-      innerKnotPath.moveTo(innerCornerGap * 0.8, innerPad);
-      innerKnotPath.arcToPoint(Offset(innerPad, innerCornerGap * 0.8), radius: Radius.circular(innerPad * 0.5));
-      innerKnotPath.lineTo(innerPad, innerPad);
-      innerKnotPath.lineTo(innerCornerGap * 0.8, innerPad);
+        final Paint fillPaint = Paint()
+          ..shader = innerPaint.shader
+          ..style = PaintingStyle.fill;
 
-      // [세로 고리] (직각으로 교차)
-      innerKnotPath.moveTo(innerPad, innerCornerGap * 0.8);
-      innerKnotPath.arcToPoint(Offset(innerCornerGap * 0.8, innerPad), radius: Radius.circular(innerPad * 0.5));
-      innerKnotPath.lineTo(innerCornerGap * 0.8, innerCornerGap * 0.8);
-      innerKnotPath.lineTo(innerPad, innerCornerGap * 0.8);
-      
-      // 이 두 개의 고리가 서로 얽히는 모양을 위해 Path를 더 정교하게 쪼개야 하지만,
-      // 사용자 코드의 save/scale 구조에서는 단순한 루프를 엇갈리게 그리는 것만으로도 두 번째 사진보다 훨씬 선명하고 선명한 느낌을 줍니다.
+        // 하나의 괘(바)를 그리는 로컬 헬퍼
+        void drawBar(double y, bool isBroken) {
+          if (!isBroken) {
+            // solid bar (통선 ☰)
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                Rect.fromLTRB(-13.0, y - 2.0, 13.0, y + 2.0),
+                const Radius.circular(1.0),
+              ),
+              fillPaint,
+            );
+          } else {
+            // broken bar (반선 ☷)
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                Rect.fromLTRB(-13.0, y - 2.0, -1.8, y + 2.0),
+                const Radius.circular(1.0),
+              ),
+              fillPaint,
+            );
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                Rect.fromLTRB(1.8, y - 2.0, 13.0, y + 2.0),
+                const Radius.circular(1.0),
+              ),
+              fillPaint,
+            );
+          }
+        }
 
-      // 3. **중앙 교차 (Center Crossover)**
-      // 두 내부 루프가 교차하는 중앙에 작은 'ㄱ'자형 루프를 추가하여 얽힘을 더 강조합니다.
-      // `borderAxiPath`를 활용합니다.
-      final Path borderAxiPath = Path();
-      borderAxiPath.moveTo(innerPad + innerCornerGap * 0.4, innerPad);
-      borderAxiPath.quadraticBezierTo(innerPad, innerPad, innerPad, innerPad + innerCornerGap * 0.4);
+        // 태극기 원형 배치 규격 준수: 바깥쪽(outer) -> 안쪽(inner) 순으로 3개 배치
+        // Y축 오프셋: outer (-7.0), middle (0.0), inner (7.0)
+        switch (type) {
+          case 1: // 건 (☰ - Geon): 3선 모두 연결
+            drawBar(-7.0, false);
+            drawBar(0.0, false);
+            drawBar(7.0, false);
+            break;
+          case 2: // 감 (☵ - Gam): 가운데만 연결 (상하 split)
+            drawBar(-7.0, true);
+            drawBar(0.0, false);
+            drawBar(7.0, true);
+            break;
+          case 3: // 리 (☲ - Ri): 가운데만 갈라짐 (상하 solid)
+            drawBar(-7.0, false);
+            drawBar(0.0, true);
+            drawBar(7.0, false);
+            break;
+          case 4: // 곤 (☷ - Gon): 3선 모두 갈라짐
+            drawBar(-7.0, true);
+            drawBar(0.0, true);
+            drawBar(7.0, true);
+            break;
+        }
 
-      // 최종 드로잉
+        canvas.restore();
+      }
+
+      // 3. **모서리에 해당하는 건곤감리 괘 배치 (모서리 쪽으로 더 밀어 넣어 배치)**
+      final double centerCoord = innerPad + innerCornerGap / 2 - 10.0;
+      drawTrigram(trigramType, Offset(centerCoord, centerCoord), -math.pi / 4);
+
+      // 최종 드로잉 (외곽 코너 둥근 프레임선은 유지)
       canvas.drawPath(outerKnotPath, outerPaint);
-      canvas.drawPath(innerKnotPath, innerPaint);
-      canvas.drawPath(borderAxiPath, innerPaint); // 얇은 펜으로 그리기
 
       canvas.restore();
     }
 
-    // 4개 모서리에 각각 회전/반전 매핑하여 그리기
-    drawAuspiciousKnot(pad, pad, 1, 1);           // 좌측 상단
-    drawAuspiciousKnot(w - pad, pad, -1, 1);       // 우측 상단
-    drawAuspiciousKnot(pad, h - pad, 1, -1);       // 좌측 하단
-    drawAuspiciousKnot(w - pad, h - pad, -1, -1);   // 우측 하단
+    // 4개 모서리에 각각 태극기 건곤감리 배치하여 그리기
+    drawAuspiciousKnot(pad, pad, 1, 1, 1);           // 좌측 상단 (건 - ☰)
+    drawAuspiciousKnot(w - pad, pad, -1, 1, 2);       // 우측 상단 (감 - ☵)
+    drawAuspiciousKnot(pad, h - pad, 1, -1, 3);       // 좌측 하단 (리 - ☲)
+    drawAuspiciousKnot(w - pad, h - pad, -1, -1, 4);   // 우측 하단 (곤 - ☷)
   }
 
   @override
@@ -210,30 +249,29 @@ class KKnotPainter extends CustomPainter {
     }
 
     // ==========================================
-    // [1단계] 가장 바깥쪽 녹색 겹잎 (단청 8엽 무늬) - 8중 조밀한 레이어로 확장
+    // [1단계 복원] 가장 바깥쪽 겹잎 (남색/딥 네이비 그라데이션 및 골드 포인트)
     // ==========================================
-    final double outerLeafRadius = r * 0.355; // 크기를 0.34에서 0.355로 증가
+    final double outerLeafRadius = r * 0.355;
     final double leafDistance = r * 0.67;
 
-    // 조밀하게 나뉜 띠가 선명하게 돋보이도록 하는 어두운 경계선
+    // 조밀하게 나뉜 띠가 선명하게 돋보이도록 하는 어두운 경계선 (홍벽에 맞춘 짙은 적갈색)
     final Paint strokePaint = Paint()
-      ..color = const Color(0xFF081C10) // 아주 짙은 묵록색
+      ..color = const Color(0xFF3E1213) // 아주 짙은 묵회적색
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6;
 
-    // 두 번째 사진의 촘촘한 겹선을 재현하는 색상 및 스케일 배열
+    // 단청 홍벽(진흙 붉은색/테라코타/크림슨) 그라데이션 레이어
     final List<Map<String, dynamic>> layers = [
-      {'scale': 1.0, 'color': const Color(0xFF0F361E)},   // 1층: 가장 바깥쪽 깊은 녹색
-      {'scale': 0.88, 'color': const Color(0xFF2E7D32)},  // 2층: 짙은 단청 초록
-      {'scale': 0.77, 'color': const Color(0xFF4CAF50)},  // 3층: 중간 단청 연록
-      {'scale': 0.66, 'color': const Color(0xFF81C784)},  // 4층: 밝은 비취색
-      {'scale': 0.55, 'color': const Color(0xFF1B5E20)},  // 5층: 대비를 주는 안쪽 짙은 녹색
-      {'scale': 0.44, 'color': const Color(0xFF003300)},  // 6층: 아주 짙은 청록선
-      {'scale': 0.33, 'color': const Color(0xFFC8E6C9)},  // 7층: 밝은 연두/백록
-      {'scale': 0.18, 'color': const Color(0xFFFFEB3B)},  // 8층 (심부): 빛나는 노란색 눈(Dot)
+      {'scale': 1.0, 'color': const Color(0xFF4C1516)},   // 1층
+      {'scale': 0.88, 'color': const Color(0xFF7A2022)},  // 2층
+      {'scale': 0.77, 'color': const Color(0xFF9E2C2E)},  // 3층
+      {'scale': 0.66, 'color': const Color(0xFFCD3C3F)},  // 4층
+      {'scale': 0.55, 'color': const Color(0xFF852224)},  // 5층
+      {'scale': 0.44, 'color': const Color(0xFF4E1012)},  // 6층
+      {'scale': 0.33, 'color': const Color(0xFFE26F72)},  // 7층
+      {'scale': 0.18, 'color': const Color(0xFFFFD54F)},  // 8층 (심부)
     ];
 
-    // 8방향 잎사귀에 대해 레이어 순차 드로잉 (바깥 -> 안)
     for (var layer in layers) {
       final double scale = layer['scale'] as double;
       final Color color = layer['color'] as Color;
@@ -247,7 +285,6 @@ class KKnotPainter extends CustomPainter {
         final double ly = math.sin(angle) * leafDistance;
         canvas.drawCircle(Offset(lx, ly), outerLeafRadius * scale, fillPaint);
         
-        // 촘촘한 동심원 무늬 경계를 뚜렷하게 살려주는 외곽 스트로크
         if (scale == 1.0 || scale == 0.77 || scale == 0.55 || scale == 0.44) {
           canvas.drawCircle(Offset(lx, ly), outerLeafRadius * scale, strokePaint);
         }
@@ -266,14 +303,15 @@ class KKnotPainter extends CustomPainter {
       final double by = math.sin(angle) * blueLeafDistance;
 
       final Rect leafRect = Rect.fromCircle(center: Offset(bx, by), radius: blueLeafRadius);
+      // 전통 단청 담록(연두색/연비취색/담록) 그라데이션
       final Paint blueLeafPaint = Paint()
         ..style = PaintingStyle.fill
         ..shader = RadialGradient(
           colors: [
             Colors.white,
-            const Color(0xFF7E57C2), // 부드러운 보라
-            const Color(0xFF3F51B5), // 깊은 청색
-            const Color(0xFF1A237E), // 짙은 네이비
+            const Color(0xFFBCE7C6), // 밝은 담록색
+            const Color(0xFF78C48C), // 중간 담록색
+            const Color(0xFF2C6B43), // 짙은 녹청색 (그림자)
           ],
           stops: const [0.0, 0.35, 0.75, 1.0],
         ).createShader(leafRect);
@@ -288,91 +326,8 @@ class KKnotPainter extends CustomPainter {
       canvas.drawCircle(Offset(bx, by), blueLeafRadius, blueBorder);
     }
 
-    // ==========================================
-    // [3단계] 상하좌우 4방향 붉은색/자주색 꽃잎 (여의두문 4엽) - 크기 및 너비 대폭 확장
-    // ==========================================
-    final Paint redBorderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.2 // 더 강력하고 볼륨감 넘치는 흰색 테두리
-      ..strokeJoin = StrokeJoin.round;
+    // [3단계 제거됨] 태극 문양에 밀착되어 사방으로 뻗어 나가던 붉은색/비취색 여의두문 4엽 문양을 제거하여 코어 간섭을 최소화했습니다.
 
-    final Paint redInnerBorderPaint = Paint()
-      ..color = const Color(0xFF4A0010) // 짙은 테두리
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    for (int i = 0; i < 4; i++) {
-      canvas.save();
-      canvas.rotate(i * math.pi / 2); // 0도, 90도, 180도, 270도 회전
-
-      final Path redLeafPath = Path();
-      // 단청 특유의 양 옆으로 둥글고 넓게 퍼지며 면적이 압도적으로 큰 여의두 곡선으로 튜닝
-      redLeafPath.moveTo(r * 0.08, 0);
-      redLeafPath.cubicTo(
-        r * 0.22, -r * 0.48, // y축 제어점을 늘려 날개의 둥근 볼륨 확장
-        r * 0.62, -r * 0.52,
-        r * 0.64, -r * 0.18
-      );
-      redLeafPath.cubicTo(
-        r * 0.66, -r * 0.06,
-        r * 0.74, -r * 0.03,
-        r * 0.77, 0           // 도달 범위를 0.65에서 0.77로 늘려 붉은 면적을 극대화
-      );
-      redLeafPath.cubicTo(
-        r * 0.74, r * 0.03,
-        r * 0.66, r * 0.06,
-        r * 0.64, r * 0.18
-      );
-      redLeafPath.cubicTo(
-        r * 0.62, r * 0.52,
-        r * 0.22, r * 0.48,
-        r * 0.08, 0
-      );
-      redLeafPath.close();
-
-      // 자주색/붉은색 단청 그라데이션 채우기 (확장된 영역에 알맞게 Rect 크기 조율)
-      final Rect redRect = Rect.fromLTWH(r * 0.05, -r * 0.5, r * 0.72, r * 1.0);
-      final Paint redLeafPaint = Paint()
-        ..style = PaintingStyle.fill
-        ..shader = RadialGradient(
-          colors: [
-            const Color(0xFFFF3D57), // 더욱 맑고 환한 적색 (눈에 띔)
-            const Color(0xFFD81B60), // 중간 붉은 자주
-            const Color(0xFF880E4F), // 짙은 홍색
-            const Color(0xFF3E001C), // 깊은 어두운 자주
-          ],
-          stops: const [0.0, 0.45, 0.85, 1.0],
-        ).createShader(redRect);
-
-      canvas.drawPath(redLeafPath, redLeafPaint);
-      canvas.drawPath(redLeafPath, redBorderPaint);
-      canvas.drawPath(redLeafPath, redInnerBorderPaint);
-
-      // --- 잎 내부의 전통 당초 소용돌이 장식선 (C-curve) - 커진 크기에 맞게 비례 조정 ---
-      final Paint swirlPaint = Paint()
-        ..color = Colors.white.withOpacity(0.95)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4
-        ..strokeCap = StrokeCap.round;
-
-      final Path swirlPath = Path();
-      // 위쪽 잎 날개에 들어가는 소용돌이
-      swirlPath.moveTo(r * 0.56, -r * 0.10);
-      swirlPath.cubicTo(
-        r * 0.44, -r * 0.22,
-        r * 0.32, -r * 0.20,
-        r * 0.30, -r * 0.08
-      );
-      swirlPath.cubicTo(
-        r * 0.28, r * 0.06,
-        r * 0.38, r * 0.18,
-        r * 0.52, r * 0.10
-      );
-
-      canvas.drawPath(swirlPath, swirlPaint);
-      canvas.restore();
-    }
 
     // ==========================================
     // [4단계] 중앙 금색/노란색 원 (구형 3D 효과)

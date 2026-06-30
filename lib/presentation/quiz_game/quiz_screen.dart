@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:playingkorean/core/di/di_setup.dart';
-import 'package:playingkorean/core/presentation/k_traditional_frame.dart';
 import 'package:playingkorean/presentation/quiz_game/game_state.dart';
 import 'package:playingkorean/presentation/quiz_game/game_view_model.dart';
 import 'package:playingkorean/presentation/quiz_game/widgets/quiz_answer_feedback.dart';
@@ -31,6 +30,12 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<GameState>(
       stream: _viewModel.state,
@@ -41,12 +46,11 @@ class _QuizScreenState extends State<QuizScreen> {
         if (state.isLoading) {
           return Scaffold(
             backgroundColor: const Color(0xFF0F172A),
-            body: KTraditionalFrame(
-              blurKnot: true,
-              child: Stack(
-                children: [
-                  _buildBackgroundGlows(),
-                  Center(
+            body: Stack(
+              children: [
+                _buildBackgroundGlows(),
+                SafeArea(
+                  child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -64,15 +68,15 @@ class _QuizScreenState extends State<QuizScreen> {
                         Text(
                           '처음 실행 시 데이터 로딩에 잠시 시간이 걸릴 수 있습니다.',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
+                            color: Colors.white.withOpacity(0.5),
                             fontSize: 13,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         }
@@ -81,12 +85,11 @@ class _QuizScreenState extends State<QuizScreen> {
         if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
           return Scaffold(
             backgroundColor: const Color(0xFF0F172A),
-            body: KTraditionalFrame(
-              blurKnot: true,
-              child: Stack(
-                children: [
-                  _buildBackgroundGlows(),
-                  Center(
+            body: Stack(
+              children: [
+                _buildBackgroundGlows(),
+                SafeArea(
+                  child: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(28.0),
                       child: Column(
@@ -131,8 +134,8 @@ class _QuizScreenState extends State<QuizScreen> {
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         }
@@ -148,12 +151,11 @@ class _QuizScreenState extends State<QuizScreen> {
         if (state.questions.isEmpty && !state.isLoading) {
           return Scaffold(
             backgroundColor: const Color(0xFF0F172A),
-            body: KTraditionalFrame(
-              blurKnot: true,
-              child: Stack(
-                children: [
-                  _buildBackgroundGlows(),
-                  Center(
+            body: Stack(
+              children: [
+                _buildBackgroundGlows(),
+                SafeArea(
+                  child: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(28.0),
                       child: Column(
@@ -189,8 +191,8 @@ class _QuizScreenState extends State<QuizScreen> {
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         }
@@ -199,14 +201,13 @@ class _QuizScreenState extends State<QuizScreen> {
         if (question == null || state.questions.isEmpty) {
           return Scaffold(
             backgroundColor: const Color(0xFF0F172A),
-            body: KTraditionalFrame(
-              blurKnot: true,
-              child: Stack(
-                children: [
-                  _buildBackgroundGlows(),
-                  const QuizSkeletonLoader(),
-                ],
-              ),
+            body: Stack(
+              children: [
+                _buildBackgroundGlows(),
+                const SafeArea(
+                  child: QuizSkeletonLoader(),
+                ),
+              ],
             ),
           );
         }
@@ -214,72 +215,73 @@ class _QuizScreenState extends State<QuizScreen> {
         // 6) 본 퀴즈 풀이 화면 (K-네온 오방색 스타일 적용)
         return Scaffold(
           backgroundColor: const Color(0xFF0F172A), // 딥 옵시디언 흑
-          body: KTraditionalFrame(
-            blurKnot: true,
-            child: Stack(
-              children: [
-                _buildBackgroundGlows(),
-                SafeArea(
-                  child: Column(
-                    children: [
-                      // 커스텀 네온 상단 바
-                      _buildAppBar(context, state),
-  
-                      // 상단 게이밍 프로그레스 바
-                      _buildProgressBar(state),
-                      const SizedBox(height: 16),
-  
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              // 3D 홀로그램식 문제 카드
-                              _buildQuestionCard(state, question),
-                              const SizedBox(height: 36),
-  
-                              // K-네온 오방색 보기 리스트 패널
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 0.0),
-                                child: QuizOptionsPanel(
-                                  question: question,
-                                  state: state,
-                                  onSelect: (i) => _viewModel.onAction(SelectOption(i)),
-                                ),
-                              ),
-                              const SizedBox(height: 120), // 하단 피드백 시트 공간 확보
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-  
-                // 정/오답 제출 시 하단 네온 피드백 패널 슬라이드인
-                if (state.lastAnswerCorrect != null)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 1.0, end: 0.0),
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, value, child) {
-                        return Transform.translate(
-                          offset: Offset(0, value * 300),
-                          child: child,
-                        );
-                      },
-                      child: QuizAnswerFeedback(
-                        state: state,
-                        question: question,
-                        onNext: () => _viewModel.onAction(NextQuestion()),
+          body: Stack(
+            children: [
+              _buildBackgroundGlows(),
+              SafeArea(
+                child: Column(
+                  children: [
+                    // 커스텀 네온 상단 바
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Column(
+                        children: [
+                          _buildAppBar(context, state),
+                          _buildProgressBar(state),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    // 중간 콘텐츠 영역 (개방감 향상을 위해 프레임 제거)
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Column(
+                          children: [
+                            // 3D 홀로그램식 문제 카드
+                            _buildQuestionCard(state, question),
+                            const SizedBox(height: 36),
+
+                            // K-네온 오방색 보기 리스트 패널
+                            QuizOptionsPanel(
+                              question: question,
+                              state: state,
+                              onSelect: (i) => _viewModel.onAction(SelectOption(i)),
+                            ),
+                            const SizedBox(height: 120), // 하단 피드백 시트 공간 확보
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 정/오답 제출 시 하단 네온 피드백 패널 슬라이드인
+              if (state.lastAnswerCorrect != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 1.0, end: 0.0),
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(0, value * 300),
+                        child: child,
+                      );
+                    },
+                    child: QuizAnswerFeedback(
+                      state: state,
+                      question: question,
+                      onNext: () => _viewModel.onAction(NextQuestion()),
+                    ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         );
       },
@@ -561,7 +563,63 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  /// 🏆 K-네온 대시보드 스타일의 승리/결과 화면
+  Widget _buildResultHeader(bool isPerfect, bool isGood) {
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFFFCC00).withValues(alpha: 0.08),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFFCC00).withValues(alpha: 0.15),
+                    blurRadius: 36,
+                    spreadRadius: 2,
+                  )
+                ],
+              ),
+            ),
+            Icon(
+              isPerfect
+                  ? Icons.emoji_events_rounded
+                  : (isGood ? Icons.military_tech_rounded : Icons.verified_rounded),
+              size: 68,
+              color: isPerfect
+                  ? const Color(0xFFFFCC00)
+                  : (isGood ? const Color(0xFFFF9500) : const Color(0xFF81ECE1)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          isPerfect ? '완벽한 마스터!' : (isGood ? '대단한 실력이에요!' : '한걸음 더 나아가요!'),
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            letterSpacing: -1.0,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          isPerfect
+              ? 'Perfect Korean Achieved'
+              : (isGood ? 'Outstanding Performance' : 'Step-by-step Learning'),
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.white.withValues(alpha: 0.4),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildResult(BuildContext context, GameState state) {
     final accuracy = (state.questions.isNotEmpty)
         ? (state.score / state.questions.length) * 100
@@ -571,231 +629,154 @@ class _QuizScreenState extends State<QuizScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-      body: KTraditionalFrame(
-        blurKnot: true,
-        child: Stack(
-          children: [
-            _buildBackgroundGlows(),
-            SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
+      body: Stack(
+        children: [
+          _buildBackgroundGlows(),
+          SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 24),
+                // 1) 웅장한 K-네온 트로피 헤더 애니메이션
+                _buildResultHeader(isPerfect, isGood),
+                const SizedBox(height: 24),
+
+                // 2) K-네온 유리 대시보드 요약 정보 카드
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.02),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 1.5),
                       ),
-                      child: IntrinsicHeight(
+                      child: SingleChildScrollView(
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 16), // 기기 대응을 위해 24 -> 16 축소
-                            // 1) 웅장한 K-네온 트로피 헤더 애니메이션
-                            TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              duration: const Duration(milliseconds: 1000),
-                              curve: Curves.elasticOut,
-                              builder: (context, value, child) {
-                                return Transform.scale(scale: value, child: child);
-                              },
-                              child: Column(
-                                children: [
-                                  Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      // 트로피 뒷배경 오방 황색 후광 효과
-                                      Container(
-                                        width: 100, // 110 -> 100 축소
-                                        height: 100, // 110 -> 100 축소
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: const Color(0xFFFFCC00).withValues(alpha: 0.08),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(0xFFFFCC00).withValues(alpha: 0.15),
-                                              blurRadius: 36,
-                                              spreadRadius: 2,
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                      Icon(
-                                        isPerfect
-                                            ? Icons.emoji_events_rounded
-                                            : (isGood ? Icons.military_tech_rounded : Icons.verified_rounded),
-                                        size: 68, // 74 -> 68 축소
-                                        color: isPerfect
-                                            ? const Color(0xFFFFCC00) // 오방 황색 (골드)
-                                            : (isGood ? const Color(0xFFFF9500) : const Color(0xFF81ECE1)),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10), // 16 -> 10 축소
-                                  Text(
-                                    isPerfect ? '완벽한 마스터!' : (isGood ? '대단한 실력이에요!' : '한 걸음 더 화이팅!'),
-                                    style: const TextStyle(
-                                      fontSize: 24, // 26 -> 24 축소
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                      letterSpacing: -1.0,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    isPerfect
-                                        ? 'Perfect Korean Achieved'
-                                        : (isGood ? 'Outstanding Performance' : 'Step-by-step Learning'),
-                                    style: TextStyle(
-                                      fontSize: 12, // 13 -> 12 축소
-                                      color: Colors.white.withValues(alpha: 0.4),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
+                            const Text(
+                              'CHALLENGE SUMMARY',
+                              style: TextStyle(
+                                color: Color(0xFF81ECE1),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 2.0,
                               ),
                             ),
-                            const SizedBox(height: 16), // 24 -> 16 축소
-            
-                            // 2) K-네온 유리 대시보드 요약 정보 카드
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 0.0),
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16), // 세로 패딩 24 -> 16 축소하여 컴포넌트들을 위로 끌어올림
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.02),
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 1.5),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'CHALLENGE SUMMARY',
-                                        style: TextStyle(
-                                          color: Color(0xFF81ECE1), // 청백색
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 2.0,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 12), // 20 -> 12 축소
-                                      // 스탯 카드 그리드
-                                      Row(
-                                        children: [
-                                          _buildStatCard(
-                                            '맞힌 문제',
-                                            '${state.score} / ${state.questions.length}',
-                                            Icons.check_circle_rounded,
-                                            const Color(0xFF58D68D), // 오방 녹색
-                                          ),
-                                          const SizedBox(width: 12),
-                                          _buildStatCard(
-                                            '정답률',
-                                            '${accuracy.toInt()}%',
-                                            Icons.offline_bolt_rounded,
-                                            const Color(0xFF007AFF), // 태극 청색
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 16), // 24 -> 16 축소
-                                      // 랭킹 등급 연출 영역
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          const Text(
-                                            '나의 언어 랭크 (Rank):',
-                                            style: TextStyle(
-                                              color: Colors.white60,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                colors: isPerfect
-                                                    ? [const Color(0xFFFFCC00), const Color(0xFFFF9500)]
-                                                    : (isGood
-                                                        ? [const Color(0xFF007AFF), const Color(0xFF81ECE1)]
-                                                        : [Colors.blueGrey, Colors.grey]),
-                                              ),
-                                              borderRadius: BorderRadius.circular(20),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: (isPerfect ? const Color(0xFFFFCC00) : const Color(0xFF007AFF))
-                                                      .withValues(alpha: 0.3),
-                                                  blurRadius: 10,
-                                                )
-                                              ],
-                                            ),
-                                            child: Text(
-                                              isPerfect ? 'MASTER (훈장)' : (isGood ? 'EXPERT (달인)' : 'LEARNER (학도)'),
-                                              style: const TextStyle(
-                                                color: Color(0xFF0F172A), // 가독성을 위해 어둡게
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 11,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const Spacer(),
-                                      const SizedBox(height: 12), // 20 -> 12 축소
-            
-                                      // 하단 액션 버튼부
-                                      Column(
-                                        children: [
-                                          if (state.failedQuestions.isNotEmpty) ...[
-                                            _buildActionButton(
-                                              label: '오답 다시 풀기 (${state.failedQuestions.length})',
-                                              icon: Icons.replay_rounded,
-                                              color: const Color(0xFFFF3B30),
-                                              onTap: () => _viewModel.onAction(StartReview()),
-                                              isOutlined: true,
-                                            ),
-                                            const SizedBox(height: 10), // 12 -> 10 축소
-                                          ],
-                                          _buildActionButton(
-                                            label: '홈으로 돌아가기',
-                                            icon: Icons.home_rounded,
-                                            color: const Color(0xFF58D68D), // 오방 초록
-                                            onTap: () => context.go('/'),
-                                          ),
-                                          const SizedBox(height: 12), // 20 -> 12 축소
-                                          // 공유 및 기록 저장 아이콘
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              _buildSocialIcon(Icons.share_rounded, label: '공유'),
-                                              const SizedBox(width: 44),
-                                              _buildSocialIcon(Icons.file_download_rounded, label: '저장'),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                            const SizedBox(height: 12),
+                            
+                            Row(
+                              children: [
+                                _buildStatCard(
+                                  '맞힌 문제',
+                                  '${state.score} / ${state.questions.length}',
+                                  Icons.check_circle_rounded,
+                                  const Color(0xFF58D68D),
+                                ),
+                                const SizedBox(width: 12),
+                                _buildStatCard(
+                                  '정답률',
+                                  '${accuracy.toInt()}%',
+                                  Icons.offline_bolt_rounded,
+                                  const Color(0xFF007AFF),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  '나의 언어 랭크 (Rank):',
+                                  style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: isPerfect
+                                          ? [const Color(0xFFFFCC00), const Color(0xFFFF9500)]
+                                          : (isGood
+                                              ? [const Color(0xFF007AFF), const Color(0xFF81ECE1)]
+                                              : [Colors.blueGrey, Colors.grey]),
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (isPerfect ? const Color(0xFFFFCC00) : const Color(0xFF007AFF))
+                                            .withValues(alpha: 0.3),
+                                        blurRadius: 10,
+                                      )
+                                    ],
+                                  ),
+                                  child: Text(
+                                    isPerfect ? 'MASTER (훈장)' : (isGood ? 'EXPERT (달인)' : 'LEARNER (학도)'),
+                                    style: const TextStyle(
+                                      color: Color(0xFF0F172A),
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 11,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+
+                // 3) 하단 버튼 및 액션
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (state.failedQuestions.isNotEmpty) ...[
+                        _buildActionButton(
+                          label: '오답 다시 풀기 (${state.failedQuestions.length})',
+                          icon: Icons.replay_rounded,
+                          color: const Color(0xFFFF3B30),
+                          onTap: () => _viewModel.onAction(StartReview()),
+                          isOutlined: true,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      _buildActionButton(
+                        label: '홈으로 돌아가기',
+                        icon: Icons.home_rounded,
+                        color: const Color(0xFF58D68D),
+                        onTap: () => context.go('/'),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildSocialIcon(Icons.share_rounded, label: '공유'),
+                          const SizedBox(width: 44),
+                          _buildSocialIcon(Icons.file_download_rounded, label: '저장'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  /// 결과 요약 미니 카드
   Widget _buildStatCard(
     String label,
     String value,

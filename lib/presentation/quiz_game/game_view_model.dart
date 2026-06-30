@@ -134,6 +134,7 @@ class GameViewModel {
     
     if (nextIndex >= currentState.questions.length) {
       _audioManager.stopBgm();
+      _audioManager.playResult(currentState.score);
       _stateSubject.add(currentState.copyWith(
         isFinished: true,
         lastAnswerCorrect: () => null,
@@ -156,6 +157,7 @@ class GameViewModel {
 
   void dispose() {
     _timer?.cancel();
+    _audioManager.stopBgm();
     _stateSubject.close();
   }
 }

@@ -5,16 +5,13 @@ class AudioManager {
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _bgmPlayer = AudioPlayer();
 
-  // 예제 공개 음원 (역동적인 퀴즈쇼 스타일)
-  final String _bgmUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
-
   Future<void> playBgm() async {
     try {
       await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
-      await _bgmPlayer.play(UrlSource(_bgmUrl));
-      await _bgmPlayer.setVolume(0.4); // BGM은 약간 작게
+      await _bgmPlayer.setVolume(0.2); // 배경음악 소리가 너무 크지 않도록 설정 (0.2)
+      await _bgmPlayer.play(AssetSource('data/music/backgroundmusic_01.mp3'));
     } catch (e) {
-      print('Audio: error playing BGM: $e');
+      debugPrint('Audio: error playing BGM: $e');
     }
   }
 
@@ -22,14 +19,14 @@ class AudioManager {
     try {
       await _bgmPlayer.stop();
     } catch (e) {
-      print('Audio: error stopping BGM: $e');
+      debugPrint('Audio: error stopping BGM: $e');
     }
   }
 
   Future<void> playSuccess() async {
     try {
-      // 온라인 정답 효과음 연동
-      await _sfxPlayer.play(UrlSource('https://github.com/rafael-puebla/flutter-audio-players-sample/raw/master/assets/success.mp3'));
+      await _sfxPlayer.stop();
+      await _sfxPlayer.play(AssetSource('data/effects/correct.wav'));
     } catch (e) {
       debugPrint('Audio: Error playing success sound: $e');
     }
@@ -37,16 +34,31 @@ class AudioManager {
 
   Future<void> playFailure() async {
     try {
-      // 온라인 오답 효과음 연동
-      await _sfxPlayer.play(UrlSource('https://github.com/rafael-puebla/flutter-audio-players-sample/raw/master/assets/failure.mp3'));
+      await _sfxPlayer.stop();
+      await _sfxPlayer.play(AssetSource('data/effects/incorrect.wav'));
     } catch (e) {
       debugPrint('Audio: Error playing failure sound: $e');
     }
   }
 
+  Future<void> playResult(int score) async {
+    try {
+      await _sfxPlayer.stop();
+      if (score >= 8) {
+        await _sfxPlayer.play(AssetSource('data/effects/8_10.wav'));
+      } else if (score >= 4) {
+        await _sfxPlayer.play(AssetSource('data/effects/4_7.wav'));
+      } else {
+        await _sfxPlayer.play(AssetSource('data/effects/1_3.wav'));
+      }
+    } catch (e) {
+      debugPrint('Audio: Error playing result sound: $e');
+    }
+  }
+
   Future<void> playTimerTick() async {
     try {
-      // 틱(Tick) 소리 로직 (현재는 로그만 남김)
+      // 초(Tick) 소리 로직 (필요시 활성화)
       debugPrint('Audio: Timer Ticking...');
     } catch (e) {
       debugPrint('Audio: Error playing timer tick: $e');

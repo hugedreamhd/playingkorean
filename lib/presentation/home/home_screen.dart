@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -124,33 +125,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+        padding: const EdgeInsets.only(left: 36.0, right: 36.0, top: 32.0, bottom: 56.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _buildHeader(),
             const SizedBox(height: 32),
 
-            // 매듭과 플레이 버튼을 한 스택에 묶어 정확히 정중앙에 겹치도록 정렬
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: knotSize,
-                  height: knotSize,
-                  child: CustomPaint(
-                    painter: KKnotPainter(), 
-                  ),
-                ),
-                PremiumPlayButton(
-                  size: playButtonSize,
-                  onTap: () {
-                    context.go(
-                      '/quiz?level=$_selectedLevel&count=$_fixedCount',
-                    );
-                  },
-                ),
-              ],
+            PremiumPlayButton(
+              size: playButtonSize,
+              onTap: () {
+                context.go(
+                  '/quiz?level=$_selectedLevel&count=$_fixedCount',
+                );
+              },
             ),
             
             const SizedBox(height: 32),
@@ -235,13 +223,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Container(
-          height: 56,
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1B2436), // 배경 다크 네이비 알약
-            borderRadius: BorderRadius.circular(28),
-          ),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 270.0),
+          child: Container(
+            height: 64,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1B2436), // 배경 다크 네이비 알약
+              borderRadius: BorderRadius.circular(32),
+            ),
           child: LayoutBuilder(
             builder: (context, constraints) {
               // constraints.maxWidth는 Container의 padding(4*2=8)이 이미 제외된 실제 내부 가용 너비입니다.
@@ -257,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     left: isBeginner ? 0 : toggleWidth,
                     child: Container(
                       width: toggleWidth,
-                      height: 48,
+                      height: 56,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [
@@ -267,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(28),
                       ),
                     ),
                   ),
@@ -278,27 +268,45 @@ class _HomeScreenState extends State<HomeScreen> {
                           onTap: () => setState(() => _selectedLevel = '1'),
                           behavior: HitTestBehavior.opaque,
                           child: Center(
-                            child: Row(
+                            child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.bolt_rounded,
-                                  size: 18,
-                                  color: isBeginner
-                                      ? Colors.black87
-                                      : Colors.white54,
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.spa_rounded,
+                                      size: 17,
+                                      color: isBeginner
+                                          ? Colors.black87
+                                          : Colors.white54,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '초급',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: isBeginner
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        color: isBeginner
+                                            ? Colors.black87
+                                            : Colors.white54,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(height: 2),
                                 Text(
-                                  '초급 (Beginner)',
+                                  'Beginner',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 12,
                                     fontWeight: isBeginner
-                                        ? FontWeight.w800
-                                        : FontWeight.w600,
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
                                     color: isBeginner
-                                        ? Colors.black87
-                                        : Colors.white54,
+                                        ? Colors.black54
+                                        : Colors.white38,
                                   ),
                                 ),
                               ],
@@ -311,27 +319,45 @@ class _HomeScreenState extends State<HomeScreen> {
                           onTap: () => setState(() => _selectedLevel = '2'),
                           behavior: HitTestBehavior.opaque,
                           child: Center(
-                            child: Row(
+                            child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.lock_outline_rounded,
-                                  size: 16,
-                                  color: !isBeginner
-                                      ? Colors.black87
-                                      : const Color(0xFF8892A0),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.local_florist_rounded,
+                                      size: 17,
+                                      color: !isBeginner
+                                          ? Colors.black87
+                                          : const Color(0xFF8892A0),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '중급',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: !isBeginner
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        color: !isBeginner
+                                            ? Colors.black87
+                                            : const Color(0xFF8892A0),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(height: 2),
                                 Text(
-                                  '중급 (Medium)',
+                                  'Medium',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 12,
                                     fontWeight: !isBeginner
-                                        ? FontWeight.w800
-                                        : FontWeight.w600,
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
                                     color: !isBeginner
-                                        ? Colors.black87
-                                        : const Color(0xFF8892A0),
+                                        ? Colors.black54
+                                        : const Color(0xFF64748B),
                                   ),
                                 ),
                               ],
@@ -346,9 +372,10 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   Widget _buildGuideText() {
     return const Text(
@@ -421,54 +448,112 @@ class _PremiumPlayButtonState extends State<PremiumPlayButton>
               height: widget.size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF5ED8D4), Color(0xFF4C6EF5)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                border: Border.all(
+                  color: Colors.black, // 아주 얇게 검은색으로만
+                  width: 1.2,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF5ED8D4).withOpacity(0.3),
-                    blurRadius: _isPressed ? 12 : 24,
-                    spreadRadius: _isPressed ? 1 : 2,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
-              alignment: Alignment.center,
-              child: Container(
-                width: widget.size - 16, // 링의 두께 8px 유지
-                height: widget.size - 16,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF0D1224), // 내부 다크 네이비 원
-                ),
-                alignment: Alignment.center,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(height: widget.size * 0.05),
-                    Icon(
-                      Icons.play_arrow_rounded,
-                      size: widget.size * 0.38, // 버튼 크기에 비례하여 아이콘 스케일링
-                      color: const Color(0xFF5ED8D4),
-                    ),
-                    Text(
-                      'PLAY',
-                      style: TextStyle(
-                        fontSize: widget.size * 0.1, // 버튼 크기에 비례하여 글씨 스케일링
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 4.0,
-                        color: Colors.white,
+              child: ClipOval(
+                  child: Stack(
+                    children: [
+                      // 1) 배경 태극 문양 페인터
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: const TaegeukPainter(),
+                        ),
                       ),
-                    ),
-                  ],
+                      // 2) 겹쳐진 반투명 플레이 아이콘 및 글자
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(height: widget.size * 0.05),
+                            Icon(
+                              Icons.play_arrow_rounded,
+                              size: widget.size * 0.38,
+                              color: Colors.white.withOpacity(0.85),
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              'PLAY',
+                              style: TextStyle(
+                                fontSize: widget.size * 0.1,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 4.0,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
   }
+}
+
+/// 🇰🇷 대한민국 태극 문양을 그리는 CustomPainter
+class TaegeukPainter extends CustomPainter {
+  const TaegeukPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double R = size.width / 2;
+    final Offset center = Offset(R, R);
+
+    // 태극 파란색 (Taegeuk Blue)
+    final Paint bluePaint = Paint()
+      ..color = const Color(0xFF0F47A0) // 공식 태극기 청색과 일치
+      ..style = PaintingStyle.fill;
+
+    // 태극 빨간색 (Taegeuk Red)
+    final Paint redPaint = Paint()
+      ..color = const Color(0xFFCD2E3A) // 공식 태극기 적색과 일치
+      ..style = PaintingStyle.fill;
+
+    // 1) 전체 원을 파란색으로 채우기 (아래 절반 자동 커버)
+    canvas.drawCircle(center, R, bluePaint);
+
+    // 2) 빨간색 영역(위쪽 절반 + S자 물결 모양) 그리기
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+
+    final Path redPath = Path();
+    redPath.moveTo(-R, 0);
+    
+    // 위쪽 큰 반원: (-R,0)에서 (R,0)으로 위쪽을 돌며 스윕 (-pi)
+    redPath.arcTo(Rect.fromCircle(center: Offset.zero, radius: R), math.pi, -math.pi, false);
+    
+    // 오른쪽 작은 반원: (R,0)에서 (0,0)으로 위쪽으로 볼록하게 스윕 (-pi)
+    redPath.arcTo(Rect.fromCircle(center: Offset(R / 2, 0), radius: R / 2), 0, -math.pi, false);
+    
+    // 왼쪽 작은 반원: (0,0)에서 (-R,0)으로 아래쪽으로 볼록하게 스윕 (+pi)
+    redPath.arcTo(Rect.fromCircle(center: Offset(-R / 2, 0), radius: R / 2), 0, math.pi, false);
+    
+    redPath.close();
+
+    canvas.drawPath(redPath, redPaint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

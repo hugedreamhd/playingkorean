@@ -11,6 +11,7 @@ class QuizOptionButton extends StatefulWidget {
   final bool? isCorrect; // null: 선택 전, true: 정답, false: 오답
   final bool isSelected;
   final bool isAnswer;
+  final bool isDisabled;
 
   const QuizOptionButton({
     super.key,
@@ -22,14 +23,61 @@ class QuizOptionButton extends StatefulWidget {
     this.isCorrect,
     this.isSelected = false,
     this.isAnswer = false,
+    this.isDisabled = false,
   });
 
   @override
   State<QuizOptionButton> createState() => _QuizOptionButtonState();
 }
 
-class _QuizOptionButtonState extends State<QuizOptionButton> {
+class _QuizOptionButtonState extends State<QuizOptionButton>
+    with SingleTickerProviderStateMixin {
   bool _isPressed = false;
+  late AnimationController _stampController;
+  late Animation<double> _stampScaleAnimation;
+  late Animation<double> _stampOpacityAnimation;
+  bool _hasTriggeredStamp = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _stampController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
+    // 하늘에서 쾅 찍히는 듯한 스케일 모션 (스케일 3.0 -> 1.0)
+    _stampScaleAnimation = Tween<double>(begin: 3.0, end: 1.0).animate(
+      CurvedAnimation(parent: _stampController, curve: Curves.bounceOut),
+    );
+
+    _stampOpacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _stampController, curve: Curves.easeIn),
+    );
+
+    if (widget.isDisabled) {
+      _stampController.value = 1.0; // 이미 비활성화되어 있는 보기는 바로 도장 고정 표시
+      _hasTriggeredStamp = true;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant QuizOptionButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isDisabled && !oldWidget.isDisabled && !_hasTriggeredStamp) {
+      _hasTriggeredStamp = true;
+      _stampController.forward();
+    } else if (!widget.isDisabled && oldWidget.isDisabled) {
+      _hasTriggeredStamp = false;
+      _stampController.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _stampController.dispose();
+    super.dispose();
+  }
 
   String? _buildMeaning() =>
       (widget.english != null && widget.english!.isNotEmpty)
@@ -155,9 +203,12 @@ class _QuizOptionButtonState extends State<QuizOptionButton> {
       }
     }
 
+    // 비활성화되었을 때 투명도 조절 (도장이 선명하게 강조될 수 있도록 투명도를 0.25 정도로 유지)
+    final finalOpacity = widget.isDisabled ? 0.25 : opacity;
+
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 240),
-      opacity: opacity,
+      opacity: finalOpacity,
       child: Transform.scale(
         scale: _isPressed ? 0.96 : 1.0,
         child: Container(
@@ -165,91 +216,120 @@ class _QuizOptionButtonState extends State<QuizOptionButton> {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTapDown: isRevealed ? null : (_) => setState(() => _isPressed = true),
-              onTapUp: isRevealed ? null : (_) {
+              onTapDown: isRevealed || widget.isDisabled ? null : (_) => setState(() => _isPressed = true),
+              onTapUp: isRevealed || widget.isDisabled ? null : (_) {
                 setState(() => _isPressed = false);
                 widget.onTap();
               },
-              onTapCancel: isRevealed ? null : () => setState(() => _isPressed = false),
+              onTapCancel: isRevealed || widget.isDisabled ? null : () => setState(() => _isPressed = false),
               borderRadius: BorderRadius.circular(22),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Row(
-                  children: [
-                    // 좌측 고유 K-네온 아이콘 영역
-                    _getIcon(
-                      isRevealed
-                          ? (widget.isAnswer
-                              ? const Color(0xFF58D68D)
-                              : (widget.isSelected ? const Color(0xFFFF3B30) : neonColor.withValues(alpha: 0.35)))
-                          : neonColor,
-                    ),
-                    const SizedBox(width: 14),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Row(
+                      children: [
+                        // 좌측 고유 K-네온 아이콘 영역
+                        _getIcon(
+                          isRevealed
+                              ? (widget.isAnswer
+                                  ? const Color(0xFF58D68D)
+                                  : (widget.isSelected ? const Color(0xFFFF3B30) : neonColor.withValues(alpha: 0.35)))
+                              : neonColor,
+                        ),
+                        const SizedBox(width: 14),
 
-                    // 중앙 텍스트 영역 (단어 + 발음 + 뜻)
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
+                        // 중앙 텍스트 영역 (단어 + 발음 + 뜻)
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Flexible(
-                                child: Text(
-                                  widget.text,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -0.5,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      widget.text,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  if (widget.romaji.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      widget.romaji,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.45),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
-                              if (widget.romaji.isNotEmpty) ...[
-                                const SizedBox(width: 6),
+                              if (_buildMeaning() != null) ...[
+                                const SizedBox(height: 4),
                                 Text(
-                                  widget.romaji,
-                                  maxLines: 1,
+                                  _buildMeaning()!,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.45),
+                                    color: Colors.white.withValues(alpha: 0.40),
                                     fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    fontStyle: FontStyle.italic,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.25,
                                   ),
                                 ),
                               ],
                             ],
                           ),
-                          if (_buildMeaning() != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              _buildMeaning()!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.40),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                height: 1.25,
+                        ),
+
+                        // 우측 정답/오답 확인 상태 아이콘
+                        if (stateIcon != null) ...[
+                          const SizedBox(width: 8),
+                          stateIcon,
+                        ]
+                      ],
+                    ),
+                  ),
+                  
+                  // 붉은색 암행어사 마패 낙인 도장 애니메이션 오버레이
+                  if (widget.isDisabled)
+                    Positioned.fill(
+                      child: Center(
+                        child: AnimatedBuilder(
+                          animation: _stampController,
+                          builder: (context, child) {
+                            return Transform.rotate(
+                              angle: -0.15, // 약간 비스듬히 찍히는 전통 전각 낙인 표현
+                              child: Transform.scale(
+                                scale: _stampScaleAnimation.value,
+                                child: Opacity(
+                                  opacity: _stampOpacityAnimation.value,
+                                  child: CustomPaint(
+                                    size: const Size(60, 60),
+                                    painter: MapaeStampPainter(),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ],
+                            );
+                          },
+                        ),
                       ),
                     ),
-
-                    // 우측 정답/오답 확인 상태 아이콘
-                    if (stateIcon != null) ...[
-                      const SizedBox(width: 8),
-                      stateIcon,
-                    ]
-                  ],
-                ),
+                ],
               ),
             ),
           ),
@@ -257,4 +337,60 @@ class _QuizOptionButtonState extends State<QuizOptionButton> {
       ),
     );
   }
+}
+
+// 붉은색 전통 마패 도장 페인터
+class MapaeStampPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+    final Offset center = Offset(w / 2, h / 2);
+    final double radius = w * 0.45;
+
+    // 빈티지한 전각 인장의 붉은 낙인 색상
+    final paint = Paint()
+      ..color = const Color(0xFFC0392B).withValues(alpha: 0.85) // 전각 붉은색
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    // 도장 외곽 이중 동심원 테두리
+    canvas.drawCircle(center, radius, paint);
+    canvas.drawCircle(center, radius - 3, paint);
+
+    final fillPaint = Paint()
+      ..color = const Color(0xFFC0392B).withValues(alpha: 0.85)
+      ..style = PaintingStyle.fill;
+
+    // 중앙의 말(馬) 실루엣 드로잉
+    final Path p = Path();
+    final double scaleSize = radius * 0.95;
+    
+    final double sx = center.dx - scaleSize * 0.48;
+    final double sy = center.dy - scaleSize * 0.36;
+
+    p.moveTo(sx + scaleSize * 0.22, sy + scaleSize * 0.48);
+    p.quadraticBezierTo(sx + scaleSize * 0.28, sy + scaleSize * 0.28, sx + scaleSize * 0.38, sy + scaleSize * 0.28);
+    p.lineTo(sx + scaleSize * 0.41, sy + scaleSize * 0.20);
+    p.lineTo(sx + scaleSize * 0.44, sy + scaleSize * 0.28);
+    p.quadraticBezierTo(sx + scaleSize * 0.54, sy + scaleSize * 0.31, sx + scaleSize * 0.52, sy + scaleSize * 0.39);
+    p.quadraticBezierTo(sx + scaleSize * 0.46, sy + scaleSize * 0.43, sx + scaleSize * 0.40, sy + scaleSize * 0.45);
+    p.quadraticBezierTo(sx + scaleSize * 0.48, sy + scaleSize * 0.55, sx + scaleSize * 0.58, sy + scaleSize * 0.55);
+    p.quadraticBezierTo(sx + scaleSize * 0.73, sy + scaleSize * 0.48, sx + scaleSize * 0.83, sy + scaleSize * 0.45);
+    p.quadraticBezierTo(sx + scaleSize * 0.94, sy + scaleSize * 0.48, sx + scaleSize * 0.97, sy + scaleSize * 0.60);
+    p.quadraticBezierTo(sx + scaleSize * 0.85, sy + scaleSize * 0.62, sx + scaleSize * 0.81, sy + scaleSize * 0.56);
+    p.lineTo(sx + scaleSize * 0.79, sy + scaleSize * 0.75);
+    p.lineTo(sx + scaleSize * 0.73, sy + scaleSize * 0.76);
+    p.lineTo(sx + scaleSize * 0.75, sy + scaleSize * 0.58);
+    p.quadraticBezierTo(sx + scaleSize * 0.58, sy + scaleSize * 0.65, sx + scaleSize * 0.45, sy + scaleSize * 0.60);
+    p.lineTo(sx + scaleSize * 0.35, sy + scaleSize * 0.78);
+    p.lineTo(sx + scaleSize * 0.29, sy + scaleSize * 0.76);
+    p.lineTo(sx + scaleSize * 0.38, sy + scaleSize * 0.52);
+    p.close();
+
+    canvas.drawPath(p, fillPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

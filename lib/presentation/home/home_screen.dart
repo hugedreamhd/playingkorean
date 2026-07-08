@@ -2,7 +2,10 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:playingkorean/core/di/di_setup.dart';
 import 'package:playingkorean/core/presentation/k_traditional_frame.dart';
+import 'package:playingkorean/core/presentation/yeopjeon_painter.dart';
+import 'package:playingkorean/domain/user/user_wallet_repository.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +17,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _selectedLevel = '1';
   final int _fixedCount = 10;
+  int _coins = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCoins();
+  }
+
+  void _loadCoins() async {
+    final coins = await getIt<UserWalletRepository>().getCoins();
+    if (mounted) {
+      setState(() {
+        _coins = coins;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -154,29 +173,57 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeader() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1B2436), // 상단 알약 컨테이너 색상
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.translate_rounded, color: Color(0xFF5ED8D4), size: 14),
-              SizedBox(width: 6),
-              Text(
-                'PLAYING KOREAN',
-                style: TextStyle(
-                  color: Color(0xFF5ED8D4),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2.0,
-                ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1B2436), // 상단 알약 컨테이너 색상
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
               ),
-            ],
-          ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.translate_rounded, color: Color(0xFF5ED8D4), size: 14),
+                  SizedBox(width: 6),
+                  Text(
+                    'PLAYING KOREAN',
+                    style: TextStyle(
+                      color: Color(0xFF5ED8D4),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1B2436), // 상단 알약 컨테이너 색상
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const YeopjeonWidget(size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$_coins냥',
+                    style: const TextStyle(
+                      color: Color(0xFFE5C158),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 24),
         ShaderMask(

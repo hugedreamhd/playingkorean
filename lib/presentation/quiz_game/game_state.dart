@@ -13,6 +13,13 @@ class GameState {
   final String selectedLevel;
   final int selectedCount;
   final List<QuizQuestion> failedQuestions;
+  
+  // 보상형 시스템 및 마패 찬스 상태 추가
+  final int coins;
+  final int earnedCoins;
+  final bool isDoubleRewardClaimed;
+  final List<int> disabledOptionIndices;
+  final int mapaeUsedCount;
 
   GameState({
     this.questions = const [],
@@ -27,6 +34,11 @@ class GameState {
     this.selectedLevel = '1',
     this.selectedCount = 10,
     this.failedQuestions = const [],
+    this.coins = 0,
+    this.earnedCoins = 0,
+    this.isDoubleRewardClaimed = false,
+    this.disabledOptionIndices = const [],
+    this.mapaeUsedCount = 0,
   });
 
   QuizQuestion? get currentQuestion =>
@@ -47,6 +59,11 @@ class GameState {
     String? selectedLevel,
     int? selectedCount,
     List<QuizQuestion>? failedQuestions,
+    int? coins,
+    int? earnedCoins,
+    bool? isDoubleRewardClaimed,
+    List<int>? disabledOptionIndices,
+    int? mapaeUsedCount,
   }) {
     return GameState(
       questions: questions ?? this.questions,
@@ -61,6 +78,11 @@ class GameState {
       selectedLevel: selectedLevel ?? this.selectedLevel,
       selectedCount: selectedCount ?? this.selectedCount,
       failedQuestions: failedQuestions ?? this.failedQuestions,
+      coins: coins ?? this.coins,
+      earnedCoins: earnedCoins ?? this.earnedCoins,
+      isDoubleRewardClaimed: isDoubleRewardClaimed ?? this.isDoubleRewardClaimed,
+      disabledOptionIndices: disabledOptionIndices ?? this.disabledOptionIndices,
+      mapaeUsedCount: mapaeUsedCount ?? this.mapaeUsedCount,
     );
   }
 }
@@ -87,3 +109,19 @@ class TickTimer extends GameAction {}
 class NextQuestion extends GameAction {}
 
 class ResetGame extends GameAction {}
+
+// 엽전 및 마패 찬스 동작 추가
+class UseMapaeChance extends GameAction {}
+
+class AdWatchedForMapae extends GameAction {}
+
+class ClaimDoubleReward extends GameAction {}
+
+class UpdateWalletCoins extends GameAction {
+  final int coins;
+  UpdateWalletCoins(this.coins);
+}
+
+class PauseTimer extends GameAction {}
+
+class ResumeTimer extends GameAction {}

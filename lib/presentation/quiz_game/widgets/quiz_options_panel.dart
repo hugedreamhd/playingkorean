@@ -38,15 +38,21 @@ class QuizOptionsPanel extends StatelessWidget {
   }
 
   Widget _buildButton(int index) {
-    return QuizOptionButton(
-      text: question.options[index],
-      romaji: _safeRomaji(index),
-      english: _safeMeaning(index),
-      type: ChoiceType.values[index % 4],
-      onTap: () => onSelect(index),
-      isCorrect: state.lastAnswerCorrect,
-      isSelected: state.selectedOptionIndex == index,
-      isAnswer: index == question.answerIndex,
+    final isDisabled = state.disabledOptionIndices.contains(index);
+
+    return IgnorePointer(
+      ignoring: isDisabled,
+      child: QuizOptionButton(
+        text: question.options[index],
+        romaji: _safeRomaji(index),
+        english: _safeMeaning(index),
+        type: ChoiceType.values[index % 4],
+        onTap: () => onSelect(index),
+        isCorrect: state.lastAnswerCorrect,
+        isSelected: state.selectedOptionIndex == index,
+        isAnswer: index == question.answerIndex,
+        isDisabled: isDisabled,
+      ),
     );
   }
 

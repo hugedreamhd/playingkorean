@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:playingkorean/core/di/di_setup.dart';
 import 'package:playingkorean/core/presentation/app_theme.dart';
 import 'package:playingkorean/presentation/home/home_screen.dart';
@@ -7,6 +8,7 @@ import 'package:playingkorean/presentation/quiz_game/quiz_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  MobileAds.instance.initialize();
   setupDI();
   runApp(const MyApp());
 }

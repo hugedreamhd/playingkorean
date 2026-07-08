@@ -24,7 +24,7 @@ class QuizScreen extends StatefulWidget {
   State<QuizScreen> createState() => _QuizScreenState();
 }
 
-class _QuizScreenState extends State<QuizScreen> {
+class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
   final GameViewModel _viewModel = getIt<GameViewModel>();
 
   // 족자 배너 관련 상태
@@ -51,6 +51,7 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _viewModel.onAction(
       LoadQuizzes(difficulty: widget.level, count: widget.count),
     );
@@ -58,9 +59,19 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollBannerTimer?.cancel();
     _viewModel.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _viewModel.onAction(PauseBgm());
+    } else if (state == AppLifecycleState.resumed) {
+      _viewModel.onAction(ResumeBgm());
+    }
   }
 
   @override

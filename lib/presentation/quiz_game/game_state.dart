@@ -125,3 +125,7 @@ class UpdateWalletCoins extends GameAction {
 class PauseTimer extends GameAction {}
 
 class ResumeTimer extends GameAction {}
+
+class PauseBgm extends GameAction {}
+
+class ResumeBgm extends GameAction {}

@@ -53,6 +53,10 @@ class GameViewModel {
         _timer?.cancel();
       case ResumeTimer():
         _startTimer(resume: true);
+      case PauseBgm():
+        _audioManager.pauseBgm();
+      case ResumeBgm():
+        _audioManager.resumeBgm();
     }
   }
 

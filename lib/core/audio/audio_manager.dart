@@ -4,12 +4,14 @@ import 'package:flutter/foundation.dart';
 class AudioManager {
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _bgmPlayer = AudioPlayer();
+  bool _isPlayingBgm = false;
 
   Future<void> playBgm() async {
     try {
       await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
       await _bgmPlayer.setVolume(0.2); // 배경음악 소리가 너무 크지 않도록 설정 (0.2)
       await _bgmPlayer.play(AssetSource('data/music/backgroundmusic_01.mp3'));
+      _isPlayingBgm = true;
     } catch (e) {
       debugPrint('Audio: error playing BGM: $e');
     }
@@ -18,8 +20,29 @@ class AudioManager {
   Future<void> stopBgm() async {
     try {
       await _bgmPlayer.stop();
+      _isPlayingBgm = false;
     } catch (e) {
       debugPrint('Audio: error stopping BGM: $e');
+    }
+  }
+
+  Future<void> pauseBgm() async {
+    try {
+      if (_isPlayingBgm) {
+        await _bgmPlayer.pause();
+      }
+    } catch (e) {
+      debugPrint('Audio: error pausing BGM: $e');
+    }
+  }
+
+  Future<void> resumeBgm() async {
+    try {
+      if (_isPlayingBgm) {
+        await _bgmPlayer.resume();
+      }
+    } catch (e) {
+      debugPrint('Audio: error resuming BGM: $e');
     }
   }
 
